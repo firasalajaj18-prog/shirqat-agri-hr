@@ -1,6 +1,6 @@
 /**
  * موقع الموارد البشرية لشعبة زراعة الشرقاط
- * Frontend Application Logic
+ * Frontend Application Logic (Cloud-Native Firebase Enabled)
  * Designer: FIRAS ALAJAJ
  */
 
@@ -12,7 +12,8 @@ const state = {
   cameraStream: null,
   cameraTarget: null,
   cameraFacingMode: 'user', // 'user' or 'environment'
-  employeesList: []
+  employeesList: [],
+  cloudSettings: null
 };
 
 // Target Map for Camera & Previews
@@ -28,9 +29,38 @@ const ATTACHMENT_MAP = {
 };
 
 // DOM Content Loaded
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initEventListeners();
+  await initCloudSystem();
 });
+
+async function initCloudSystem() {
+  try {
+    // 1. Load Cloud Settings
+    state.cloudSettings = await getCloudSettings();
+
+    // 2. Fetch Initial Employees from Cloud
+    let emps = await getAllCloudEmployees();
+
+    // 3. If Cloud is empty, try seeding from local database if available
+    if (emps.length === 0) {
+      try {
+        const localRes = await fetch('/api/manager/employees');
+        const localData = await localRes.json();
+        if (localData && localData.employees && localData.employees.length > 0) {
+          await seedInitialDataIfEmpty(localData.employees);
+          emps = await getAllCloudEmployees();
+        }
+      } catch (e) {
+        // standalone mode without local backend
+      }
+    }
+
+    state.employeesList = emps;
+  } catch (err) {
+    console.warn('Init notice:', err.message);
+  }
+}
 
 function initEventListeners() {
   // Action Cards Click Events
@@ -93,7 +123,6 @@ function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.classList.remove('active');
 
-  // If closing manager login, clean fields
   if (id === 'managerLoginModal') {
     clearManagerLoginForm();
   }
@@ -137,26 +166,23 @@ async function handleManagerLogin(event) {
   errorEl.style.display = 'none';
 
   try {
-    const res = await fetch('/api/auth/manager', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
+    const settings = state.cloudSettings || (await getCloudSettings());
+    const validUser = settings.adminUsername || 'admin';
+    const validPass = settings.adminPassword || 'admin2024';
 
-    const data = await res.json();
-    if (data.success) {
+    if (username === validUser && password === validPass) {
       state.isManagerLoggedIn = true;
       clearManagerLoginForm();
       closeModal('managerLoginModal');
-      showToast('مرحباً بك، تم تسجيل دخول المدير بنجاح', 'success');
+      showToast('مرحباً بك، تم تسجيل دخول المدير السحابي بنجاح', 'success');
       showView('managerDashboardView');
       loadManagerDashboard();
     } else {
-      errorEl.textContent = data.message || 'بيانات الدخول غير صحيحة';
+      errorEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
       errorEl.style.display = 'flex';
     }
   } catch (error) {
-    errorEl.textContent = 'حدث خطأ في الاتصال بالخادم، يرجى المحاولة لاحقاً';
+    errorEl.textContent = 'حدث خطأ في التحقق من الدخول، يرجى المحاولة لاحقاً';
     errorEl.style.display = 'flex';
   }
 }
@@ -170,16 +196,12 @@ function logoutManager() {
 
 async function loadManagerDashboard() {
   try {
-    const res = await fetch('/api/manager/employees');
-    const data = await res.json();
-
-    if (data.success) {
-      state.employeesList = data.employees;
-      renderStats(data.employees);
-      renderEmployeesTable(data.employees);
-    }
+    const emps = await getAllCloudEmployees();
+    state.employeesList = emps;
+    renderStats(emps);
+    renderEmployeesTable(emps);
   } catch (err) {
-    showToast('خطأ في جلب بيانات الموظفين', 'danger');
+    showToast('خطأ في جلب بيانات الموظفين من السحابة', 'danger');
   }
 }
 
@@ -197,13 +219,13 @@ function renderEmployeesTable(employees) {
   const tbody = document.getElementById('employeesTableBody');
   tbody.innerHTML = '';
 
-  if (employees.length === 0) {
+  if (!employees || employees.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-muted);">
           <i class="fa-solid fa-folder-open" style="font-size: 2.8rem; margin-bottom: 0.85rem; color: var(--sage-400);"></i>
-          <p style="font-weight: 800; font-size: 1.1rem; color: var(--sage-900);">لا توجد سجلات حالياً في المنظومة</p>
-          <p style="font-size: 0.9rem; margin-top: 0.25rem;">يمكنك إضافة موظف يدوياً أو استيراد الأسماء من ملف Excel.</p>
+          <p style="font-weight: 800; font-size: 1.1rem; color: var(--sage-900);">لا توجد سجلات حالياً في السحابة</p>
+          <p style="font-size: 0.9rem; margin-top: 0.25rem;">يمكنك إضافة موظف أو استيراد أسماء من ملف Excel.</p>
         </td>
       </tr>
     `;
@@ -279,50 +301,295 @@ function filterEmployeesTable() {
   renderEmployeesTable(filtered);
 }
 
-// Master Save Command with Timestamped Folder
+// ==================== BROWSER DIRECT EXPORT (EXCEL & WORD & ZIP) ====================
+
+/**
+ * Generates and downloads styled Excel sheet directly in the browser using ExcelJS
+ */
+async function downloadDirectExcel() {
+  if (typeof ExcelJS === 'undefined') {
+    window.location.href = '/api/manager/export/excel';
+    return;
+  }
+
+  showToast('جاري توليد ملف Excel المنسق...', 'info');
+
+  try {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'شعبة زراعة الشرقاط - نظام الموارد البشرية السحابي';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('بيانات الموظفين', {
+      views: [{ rightToLeft: true }]
+    });
+
+    worksheet.columns = [
+      { header: 'ت', key: 'seq', width: 6 },
+      { header: 'الاسم الرباعي واللقب', key: 'fullQuadName', width: 30 },
+      { header: 'اسم الأم الثلاثي', key: 'motherName', width: 24 },
+      { header: 'الرقم العائلي', key: 'familyNumber', width: 14 },
+      { header: 'رقم البطاقة الموحدة', key: 'unifiedId', width: 20 },
+      { header: 'فصيلة الدم', key: 'bloodType', width: 12 },
+      { header: 'رقم الهاتف', key: 'phone', width: 16 },
+      { header: 'الصفة الوظيفية', key: 'jobStatus', width: 14 },
+      { header: 'الدائرة / الشعبة', key: 'department', width: 26 },
+      { header: 'المنصب', key: 'position', width: 20 },
+      { header: 'العنوان الوظيفي', key: 'jobTitle', width: 24 },
+      { header: 'حالة إكمال البيانات', key: 'status', width: 18 },
+      { header: 'تاريخ الإكمال', key: 'completedAt', width: 18 }
+    ];
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.height = 32;
+    headerRow.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF41674E' } };
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    state.employeesList.forEach((emp, index) => {
+      const quadName = [
+        emp.firstName || '',
+        emp.secondName || '',
+        emp.thirdName || '',
+        emp.fourthName || '',
+        emp.surname || ''
+      ].filter(Boolean).join(' ') || emp.fullName;
+
+      const row = worksheet.addRow({
+        seq: index + 1,
+        fullQuadName: quadName,
+        motherName: emp.motherName || '—',
+        familyNumber: emp.familyNumber || '—',
+        unifiedId: emp.unifiedId || '—',
+        bloodType: emp.bloodType || '—',
+        phone: emp.phone || '—',
+        jobStatus: emp.jobStatus || '—',
+        department: emp.department || 'شعبة زراعة الشرقاط',
+        position: emp.position || 'موظف',
+        jobTitle: emp.jobTitle || '—',
+        status: emp.isCompleted ? 'مكتمل' : 'بانتظار الإكمال',
+        completedAt: emp.completedAt ? new Date(emp.completedAt).toLocaleDateString('ar-IQ') : '—'
+      });
+
+      row.height = 24;
+      const isEven = index % 2 === 0;
+      row.eachCell((cell, colNumber) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isEven ? 'FFF9FBF9' : 'FFFFFFFF' } };
+        cell.alignment = { vertical: 'middle', horizontal: colNumber === 1 || colNumber === 6 || colNumber === 12 ? 'center' : 'right' };
+        if (colNumber === 12) {
+          cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: emp.isCompleted ? 'FF2D6A4F' : 'FFD97706' } };
+        }
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, 'بيانات_الموظفين_شعبة_زراعة_الشرقاط.xlsx');
+    showToast('تم تحميل ملف Excel بنجاح!', 'success');
+  } catch (err) {
+    showToast('خطأ في توليد ملف الإكسل: ' + err.message, 'danger');
+  }
+}
+
+/**
+ * Generates and downloads official Word table directly in browser
+ */
+function downloadDirectWord() {
+  try {
+    let rowsHtml = '';
+    state.employeesList.forEach((emp, index) => {
+      const quadName = [
+        emp.firstName || '',
+        emp.secondName || '',
+        emp.thirdName || '',
+        emp.fourthName || '',
+        emp.surname || ''
+      ].filter(Boolean).join(' ') || emp.fullName;
+
+      rowsHtml += `
+        <tr style="background: ${index % 2 === 0 ? '#f4f7f4' : '#ffffff'};">
+          <td style="text-align: center;">${index + 1}</td>
+          <td>${quadName}</td>
+          <td>${emp.motherName || '—'}</td>
+          <td>${emp.unifiedId || '—'}</td>
+          <td style="text-align: center;">${emp.bloodType || '—'}</td>
+          <td>${emp.phone || '—'}</td>
+          <td>${emp.jobStatus || '—'}</td>
+          <td>${emp.jobTitle || '—'}</td>
+          <td style="text-align: center; color: ${emp.isCompleted ? '#2D6A4F' : '#d97706'}; font-weight: bold;">
+            ${emp.isCompleted ? 'مكتمل' : 'قيد الانتظار'}
+          </td>
+        </tr>
+      `;
+    });
+
+    const docContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>جدول موظفي شعبة زراعة الشرقاط</title>
+      <style>
+        body { font-family: 'Arial', sans-serif; direction: rtl; text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background-color: #41674E; color: #ffffff; padding: 8px; border: 1px solid #2D4736; font-size: 11pt; }
+        td { padding: 6px 8px; border: 1px solid #cccccc; font-size: 10pt; }
+      </style>
+      </head>
+      <body>
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #2D4736; margin: 0;">جمهورية العراق - وزارة الزراعة</h2>
+          <h3 style="color: #41674E; margin: 5px 0;">مديرية زراعة صلاح الدين / شعبة زراعة الشرقاط</h3>
+          <p style="color: #666666;">جدول بيانات الموظفين - وحدة الموارد البشرية (تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-IQ')})</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 30px;">ت</th>
+              <th>الاسم الرباعي واللقب</th>
+              <th>اسم الأم</th>
+              <th>البطاقة الموحدة</th>
+              <th>فصيلة الدم</th>
+              <th>الهاتف</th>
+              <th>الصفة</th>
+              <th>العنوان الوظيفي</th>
+              <th>حالة البيانات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff' + docContent], { type: 'application/msword' });
+    saveAs(blob, 'جدول_الموظفين_شعبة_زراعة_الشرقاط.doc');
+    showToast('تم تحميل ملف Word بنجاح!', 'success');
+  } catch (err) {
+    showToast('خطأ في توليد ملف الوورد: ' + err.message, 'danger');
+  }
+}
+
+/**
+ * Master Save: Zips Excel file + employee photos into a timestamped ZIP archive
+ */
 async function triggerMasterSave() {
   const btn = document.getElementById('btnMasterSave');
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري توليد المجلد المؤرخ والجداول...`;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري تجهيز الأرشيف السحابي ومجلدات الصور...`;
 
   try {
-    const res = await fetch('/api/manager/save-all', { method: 'POST' });
-    const data = await res.json();
-
-    if (data.success) {
-      showToast(`✅ تم حفظ وتصدير السجلات بنجاح في مجلد: ${data.details.folderName}`, 'success');
-      alert(
-        `🎉 تم تنفيذ إيعاز الحفظ والتصدير بنجاح!\n\n` +
-        `📁 اسم المجلد المؤرخ: ${data.details.folderName}\n` +
-        `📍 المسار: ${data.details.exportFolder}\n` +
-        `📊 ملف الإكسل المنسق: بيانات الموظفين\\بيانات_الموظفين_شعبة_زراعة_الشرقاط.xlsx\n` +
-        `📝 ملف الوورد المنسق: بيانات الموظفين\\جدول_الموظفين_شعبة_زراعة_الشرقاط.docx\n` +
-        `👥 إجمالي مجلدات وصور الموظفين المعالجة: ${data.details.processedEmployees}`
-      );
-    } else {
-      showToast('حدث خطأ أثناء الحفظ: ' + data.error, 'danger');
+    if (typeof JSZip === 'undefined') {
+      // Fallback to local server save-all if JSZip is not loaded
+      const res = await fetch('/api/manager/save-all', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('تم الحفظ والتصدير بنجاح!', 'success');
+        alert(data.message);
+      }
+      return;
     }
+
+    const zip = new JSZip();
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const folderName = `تصدير_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+    const mainFolder = zip.folder(folderName);
+
+    // 1. Generate and attach Excel file inside the zip
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('بيانات الموظفين', { views: [{ rightToLeft: true }] });
+    worksheet.columns = [
+      { header: 'ت', key: 'seq', width: 6 },
+      { header: 'الاسم الرباعي واللقب', key: 'fullQuadName', width: 30 },
+      { header: 'اسم الأم الثلاثي', key: 'motherName', width: 24 },
+      { header: 'الرقم العائلي', key: 'familyNumber', width: 14 },
+      { header: 'رقم البطاقة الموحدة', key: 'unifiedId', width: 20 },
+      { header: 'فصيلة الدم', key: 'bloodType', width: 12 },
+      { header: 'رقم الهاتف', key: 'phone', width: 16 },
+      { header: 'الصفة الوظيفية', key: 'jobStatus', width: 14 },
+      { header: 'الدائرة / الشعبة', key: 'department', width: 26 },
+      { header: 'المنصب', key: 'position', width: 20 },
+      { header: 'العنوان الوظيفي', key: 'jobTitle', width: 24 },
+      { header: 'حالة إكمال البيانات', key: 'status', width: 18 }
+    ];
+
+    state.employeesList.forEach((emp, index) => {
+      const quadName = [emp.firstName, emp.secondName, emp.thirdName, emp.fourthName, emp.surname].filter(Boolean).join(' ') || emp.fullName;
+      worksheet.addRow({
+        seq: index + 1,
+        fullQuadName: quadName,
+        motherName: emp.motherName || '—',
+        familyNumber: emp.familyNumber || '—',
+        unifiedId: emp.unifiedId || '—',
+        bloodType: emp.bloodType || '—',
+        phone: emp.phone || '—',
+        jobStatus: emp.jobStatus || '—',
+        department: emp.department || 'شعبة زراعة الشرقاط',
+        position: emp.position || 'موظف',
+        jobTitle: emp.jobTitle || '—',
+        status: emp.isCompleted ? 'مكتمل' : 'بانتظار الإكمال'
+      });
+    });
+
+    const excelBuf = await workbook.xlsx.writeBuffer();
+    mainFolder.file('بيانات_الموظفين_شعبة_زراعة_الشرقاط.xlsx', excelBuf);
+
+    // 2. Add employee folders with their attachments
+    const empRootFolder = mainFolder.folder('ملفات_الموظفين');
+
+    const photoFields = [
+      { key: 'personalPhoto', name: 'الصورة_الشخصية.jpg' },
+      { key: 'medicalPhoto', name: 'الفحص_الطبي.jpg' },
+      { key: 'empCardFront', name: 'هوية_الموظف_الوجه_الامامي.jpg' },
+      { key: 'empCardBack', name: 'هوية_الموظف_الوجه_الخلفي.jpg' },
+      { key: 'idCardFront', name: 'البطاقة_الموحدة_الوجه_الامامي.jpg' },
+      { key: 'idCardBack', name: 'البطاقة_الموحدة_الوجه_الخلفي.jpg' },
+      { key: 'residenceCardFront', name: 'بطاقة_السكن_الوجه_الامامي.jpg' },
+      { key: 'residenceCardBack', name: 'بطاقة_السكن_الوجه_الخلفي.jpg' }
+    ];
+
+    let downloadedCount = 0;
+    for (const emp of state.employeesList) {
+      const folderNameClean = (emp.fullName || `موظف_${emp.id}`).replace(/[\\/:*?"<>|]/g, '_').trim();
+      const singleEmpFolder = empRootFolder.folder(folderNameClean);
+
+      for (const p of photoFields) {
+        const url = emp[p.key];
+        if (url) {
+          try {
+            if (url.startsWith('data:image')) {
+              const base64Data = url.split(',')[1];
+              singleEmpFolder.file(p.name, base64Data, { base64: true });
+            } else {
+              const fetchRes = await fetch(url);
+              if (fetchRes.ok) {
+                const blob = await fetchRes.blob();
+                singleEmpFolder.file(p.name, blob);
+              }
+            }
+          } catch (e) {
+            // Ignore single photo fetch error
+          }
+        }
+      }
+      downloadedCount++;
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    saveAs(zipBlob, `${folderName}.zip`);
+
+    showToast(`🎉 تم تجهيز وتنزيل أرشيف المنظومة المؤرخ (${folderName}.zip) بنجاح!`, 'success');
   } catch (error) {
-    showToast('فشل في الاتصال لتنفيذ إيعاز الحفظ', 'danger');
+    showToast('خطأ أثناء تجهيز الأرشيف: ' + error.message, 'danger');
   } finally {
     btn.disabled = false;
     btn.innerHTML = originalHtml;
   }
 }
 
-// Direct Downloads
-function downloadDirectExcel() {
-  showToast('جاري بدء تحميل ملف Excel المنسق...', 'success');
-  window.location.href = '/api/manager/export/excel';
-}
-
-function downloadDirectWord() {
-  showToast('جاري بدء تحميل ملف Word المنسق...', 'success');
-  window.location.href = '/api/manager/export/word';
-}
-
-// ==================== EXCEL IMPORT FLOW ====================
+// ==================== EXCEL IMPORT FLOW (BROWSER CLIENT-SIDE) ====================
 function openUploadExcelModal() {
   document.getElementById('uploadExcelForm').reset();
   const res = document.getElementById('uploadExcelResult');
@@ -335,39 +602,63 @@ async function handleUploadExcel(event) {
   const fileInput = document.getElementById('excelFileInput');
   if (!fileInput.files[0]) return;
 
-  const formData = new FormData();
-  formData.append('excelFile', fileInput.files[0]);
-
   const resultDiv = document.getElementById('uploadExcelResult');
   const btnSubmit = document.getElementById('btnSubmitExcel');
   const originalBtn = btnSubmit.innerHTML;
 
   btnSubmit.disabled = true;
-  btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري الاستيراد والمعالجة...`;
+  btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري استيراد الأسماء إلى السحابة...`;
 
   resultDiv.className = 'custom-alert alert-info';
   resultDiv.style.display = 'flex';
-  resultDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري قراءة أسماء الموظفين من ملف الإكسل...';
+  resultDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري قراءة ملف الإكسل ومعالجة الأسماء...';
 
   try {
-    const res = await fetch('/api/manager/upload-excel', {
-      method: 'POST',
-      body: formData
-    });
-    const data = await res.json();
+    const file = fileInput.files[0];
+    const arrayBuffer = await file.arrayBuffer();
 
-    if (data.success) {
-      resultDiv.className = 'custom-alert alert-success';
-      resultDiv.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${data.message}`;
-      showToast(`تمت إضافة ${data.addedCount} أسماء جديدة بنجاح`, 'success');
-      loadManagerDashboard();
-    } else {
-      resultDiv.className = 'custom-alert alert-danger';
-      resultDiv.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${data.error || 'فشل استيراد الأسماء'}`;
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer);
+    const worksheet = workbook.worksheets[0];
+
+    if (!worksheet) {
+      throw new Error('الملف لا يحتوي على صفحات عمل');
     }
+
+    const parsedEmployees = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header
+
+      const val = (row.getCell(2).text || row.getCell(1).text || '').trim();
+      const cleaned = val.replace(/^[\d٠-٩]+[\s\.\-\)\:]+/, '').trim();
+
+      if (cleaned.length >= 4 && !cleaned.includes('الاسم') && !cleaned.includes('شعبة')) {
+        const words = cleaned.split(/\s+/).filter(w => w.length > 0);
+        if (words.length >= 2) {
+          parsedEmployees.push({
+            fullName: cleaned,
+            firstName: words[0] || '',
+            secondName: words[1] || '',
+            thirdName: words[2] || '',
+            fourthName: words[3] || '',
+            surname: words.length > 4 ? words.slice(4).join(' ') : '',
+            jobStatus: (row.getCell(3).text || 'ملاك').includes('عقد') ? 'عقد' : 'ملاك',
+            jobTitle: (row.getCell(4).text || '').trim(),
+            department: (row.getCell(5).text || 'شعبة زراعة الشرقاط').trim(),
+            phone: (row.getCell(6).text || '').trim()
+          });
+        }
+      }
+    });
+
+    const added = await batchAddCloudEmployees(parsedEmployees);
+    resultDiv.className = 'custom-alert alert-success';
+    resultDiv.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم استيراد ${parsedEmployees.length} اسماً وإضافة ${added} اسماً جديداً إلى سحابة النظام بنجاح.`;
+    showToast(`تمت إضافة ${added} أسماء جديدة للسحابة`, 'success');
+    await loadManagerDashboard();
   } catch (err) {
     resultDiv.className = 'custom-alert alert-danger';
-    resultDiv.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> خطأ في رفع ومعالجة ملف الإكسل';
+    resultDiv.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${err.message || 'خطأ في معالجة ملف الإكسل'}`;
   } finally {
     btnSubmit.disabled = false;
     btnSubmit.innerHTML = originalBtn;
@@ -383,21 +674,15 @@ async function executeWipeAllData() {
   const btn = document.getElementById('btnConfirmWipe');
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري الحذف والإفراغ...`;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري الحذف والإفراغ السحابي...`;
 
   try {
-    const res = await fetch('/api/manager/clear-all', { method: 'POST' });
-    const data = await res.json();
-
-    if (data.success) {
-      closeModal('wipeDataModal');
-      showToast(data.message, 'success');
-      loadManagerDashboard();
-    } else {
-      showToast(data.message || 'حدث خطأ أثناء المسح', 'danger');
-    }
+    const deletedCount = await clearAllCloudEmployees();
+    closeModal('wipeDataModal');
+    showToast(`تم إفراغ وحذف كافة السجلات (${deletedCount} سجل) من السحابة بنجاح!`, 'success');
+    await loadManagerDashboard();
   } catch (err) {
-    showToast('فشل في الاتصال بالخادم لمسح البيانات', 'danger');
+    showToast('فشل في عملية إفراغ السحابة: ' + err.message, 'danger');
   } finally {
     btn.disabled = false;
     btn.innerHTML = originalHtml;
@@ -408,7 +693,7 @@ async function executeWipeAllData() {
 function openAddEmployeeModal() {
   document.getElementById('employeeEditForm').reset();
   document.getElementById('editEmpId').value = '';
-  document.getElementById('employeeEditModalTitle').textContent = 'إضافة موظف جديد';
+  document.getElementById('employeeEditModalTitle').textContent = 'إضافة موظف جديد للسحابة';
   openModal('employeeEditModal');
 }
 
@@ -435,45 +720,51 @@ async function handleSaveEmployeeManual(event) {
   const department = document.getElementById('editDepartment').value.trim();
 
   try {
-    let res;
-    if (id) {
-      res = await fetch(`/api/manager/employee/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, jobStatus, jobTitle, department })
+    const words = fullName.split(/\s+/);
+    const empData = {
+      fullName,
+      firstName: words[0] || '',
+      secondName: words[1] || '',
+      thirdName: words[2] || '',
+      fourthName: words[3] || '',
+      surname: words.length > 4 ? words.slice(4).join(' ') : '',
+      jobStatus,
+      jobTitle,
+      department
+    };
+
+    if (id && db) {
+      await db.collection(COLLECTIONS.EMPLOYEES).doc(id).set(empData, { merge: true });
+      showToast('تم تعديل بيانات الموظف بنجاح في السحابة', 'success');
+    } else if (db) {
+      await db.collection(COLLECTIONS.EMPLOYEES).add({
+        ...empData,
+        motherName: '',
+        familyNumber: '',
+        unifiedId: '',
+        bloodType: '',
+        phone: '',
+        isCompleted: false,
+        completedAt: null
       });
-    } else {
-      res = await fetch('/api/manager/employee', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, jobStatus, jobTitle, department })
-      });
+      showToast('تمت إضافة الموظف الجديد إلى السحابة بنجاح', 'success');
     }
 
-    const data = await res.json();
-    if (data.success) {
-      closeModal('employeeEditModal');
-      showToast(data.message, 'success');
-      loadManagerDashboard();
-    } else {
-      showToast(data.message || 'حدث خطأ', 'danger');
-    }
+    closeModal('employeeEditModal');
+    await loadManagerDashboard();
   } catch (err) {
-    showToast('فشل في حفظ البيانات', 'danger');
+    showToast('فشل في حفظ البيانات: ' + err.message, 'danger');
   }
 }
 
 async function deleteEmployee(empId, name) {
-  if (!confirm(`هل أنت متأكد من حذف الموظف: "${name}" من المنظومة؟`)) return;
+  if (!confirm(`هل أنت متأكد من حذف الموظف: "${name}" من السحابة؟`)) return;
 
   try {
-    const res = await fetch(`/api/manager/employee/${empId}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      showToast('تم حذف الموظف بنجاح', 'success');
-      loadManagerDashboard();
-    } else {
-      showToast(data.message, 'danger');
+    if (db) {
+      await db.collection(COLLECTIONS.EMPLOYEES).doc(empId).delete();
+      showToast('تم حذف الموظف من السحابة بنجاح', 'success');
+      await loadManagerDashboard();
     }
   } catch (err) {
     showToast('فشل في عملية الحذف', 'danger');
@@ -483,16 +774,13 @@ async function deleteEmployee(empId, name) {
 // Settings Modal
 async function openSettingsModal() {
   try {
-    const res = await fetch('/api/settings');
-    const data = await res.json();
-    if (data.success) {
-      document.getElementById('settingAdminUsername').value = data.settings.adminUsername || '';
-      document.getElementById('settingAdminPassword').value = '';
-      document.getElementById('settingEmployeeCode').value = data.settings.employeeGeneralCode || '';
-      document.getElementById('settingSupportPhone').value = data.settings.supportPhone || '';
-      document.getElementById('settingStoragePath').value = data.settings.storagePath || '';
-      openModal('settingsModal');
-    }
+    const settings = await getCloudSettings();
+    document.getElementById('settingAdminUsername').value = settings.adminUsername || 'admin';
+    document.getElementById('settingAdminPassword').value = '';
+    document.getElementById('settingEmployeeCode').value = settings.employeeGeneralCode || '1234';
+    document.getElementById('settingSupportPhone').value = settings.supportPhone || '07706656968';
+    document.getElementById('settingStoragePath').value = 'Google Cloud Firestore';
+    openModal('settingsModal');
   } catch (err) {
     showToast('خطأ في تحميل الإعدادات', 'danger');
   }
@@ -504,24 +792,17 @@ async function handleSaveSettings(event) {
   const adminPassword = document.getElementById('settingAdminPassword').value.trim();
   const employeeGeneralCode = document.getElementById('settingEmployeeCode').value.trim();
   const supportPhone = document.getElementById('settingSupportPhone').value.trim();
-  const storagePath = document.getElementById('settingStoragePath').value.trim();
 
-  const payload = { adminUsername, employeeGeneralCode, supportPhone, storagePath };
+  const payload = { adminUsername, employeeGeneralCode, supportPhone };
   if (adminPassword) payload.adminPassword = adminPassword;
 
   try {
-    const res = await fetch('/api/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.success) {
-      closeModal('settingsModal');
-      showToast('تم حفظ وتحديث الإعدادات بنجاح', 'success');
-    }
+    await saveCloudSettings(payload);
+    state.cloudSettings = await getCloudSettings();
+    closeModal('settingsModal');
+    showToast('تم تحديث الإعدادات السحابية بنجاح', 'success');
   } catch (err) {
-    showToast('فشل في حفظ الإعدادات', 'danger');
+    showToast('فشل في حفظ الإعدادات السحابية', 'danger');
   }
 }
 
@@ -535,31 +816,35 @@ async function handleEmployeeVerify(event) {
   errorEl.style.display = 'none';
 
   try {
-    const res = await fetch('/api/auth/employee-check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, accessCode })
-    });
+    const settings = state.cloudSettings || (await getCloudSettings());
+    const validCode = settings.employeeGeneralCode || '1234';
 
-    const data = await res.json();
-
-    if (data.success) {
-      closeModal('employeeVerifyModal');
-      state.currentEmployee = data.employee;
-
-      if (data.isCompleted) {
-        document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${data.employee.fullName}`;
-        showView('employeeCompletedView');
-      } else {
-        populateEmployeeForm(data.employee);
-        showView('employeeFormView');
-      }
-    } else {
-      errorEl.textContent = data.message || 'حدث خطأ أثناء التحقق';
+    if (accessCode !== validCode) {
+      errorEl.textContent = 'رمز الدخول العام للموظفين غير صحيح، يرجى مراجعة إدارة الشعبة';
       errorEl.style.display = 'flex';
+      return;
+    }
+
+    const employee = await findCloudEmployeeByName(fullName);
+
+    if (!employee) {
+      errorEl.textContent = 'عذراً، هذا الاسم غير مدرج ضمن قائمة موظفي شعبة زراعة الشرقاط. يرجى التواصل مع الدعم الفني أو مراجعة الإدارة.';
+      errorEl.style.display = 'flex';
+      return;
+    }
+
+    closeModal('employeeVerifyModal');
+    state.currentEmployee = employee;
+
+    if (employee.isCompleted) {
+      document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${employee.fullName}`;
+      showView('employeeCompletedView');
+    } else {
+      populateEmployeeForm(employee);
+      showView('employeeFormView');
     }
   } catch (err) {
-    errorEl.textContent = 'تعذر الاتصال بالخادم، يرجى المحاولة ثانيةً';
+    errorEl.textContent = 'تعذر التحقق السحابي، يرجى المحاولة ثانيةً';
     errorEl.style.display = 'flex';
   }
 }
@@ -631,24 +916,71 @@ async function handleEmployeeFormSubmit(event) {
   const submitBtn = form.querySelector('button[type="submit"]');
   const originalHtml = submitBtn.innerHTML;
   submitBtn.disabled = true;
-  submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري معالجة الصور وحفظ الاستمارة...`;
+  submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري رفع الصور والمستمسكات إلى السحابة...`;
 
   try {
-    const res = await fetch('/api/employee/submit', {
-      method: 'POST',
-      body: formData
-    });
+    const empId = formData.get('employeeId');
 
-    const data = await res.json();
-    if (data.success) {
-      showToast('تم حفظ وإكمال البيانات والمرفقات بنجاح في المنظومة!', 'success');
-      document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${data.employee.fullName}`;
-      showView('employeeCompletedView');
-    } else {
-      showToast(data.message || 'حدث خطأ أثناء الحفظ', 'danger');
-    }
+    const formValues = {
+      firstName: formData.get('firstName'),
+      secondName: formData.get('secondName'),
+      thirdName: formData.get('thirdName'),
+      fourthName: formData.get('fourthName'),
+      surname: formData.get('surname'),
+      motherName: formData.get('motherName'),
+      familyNumber: formData.get('familyNumber'),
+      unifiedId: formData.get('unifiedId'),
+      bloodType: formData.get('bloodType'),
+      phone: formData.get('phone'),
+      jobStatus: formData.get('jobStatus'),
+      department: formData.get('department'),
+      position: formData.get('position'),
+      jobTitle: formData.get('jobTitle')
+    };
+
+    // Gather attachment files and camera base64 data
+    const attachments = {
+      personalPhoto: {
+        file: document.getElementById('inputPersonalFile').files[0],
+        cameraData: document.getElementById('inputPersonalCamera').value
+      },
+      medicalPhoto: {
+        file: document.getElementById('inputMedicalFile').files[0],
+        cameraData: document.getElementById('inputMedicalCamera').value
+      },
+      empCardFront: {
+        file: document.getElementById('inputEmpCardFrontFile').files[0],
+        cameraData: document.getElementById('inputEmpCardFrontCamera').value
+      },
+      empCardBack: {
+        file: document.getElementById('inputEmpCardBackFile').files[0],
+        cameraData: document.getElementById('inputEmpCardBackCamera').value
+      },
+      idCardFront: {
+        file: document.getElementById('inputIdCardFrontFile').files[0],
+        cameraData: document.getElementById('inputIdCardFrontCamera').value
+      },
+      idCardBack: {
+        file: document.getElementById('inputIdCardBackFile').files[0],
+        cameraData: document.getElementById('inputIdCardBackCamera').value
+      },
+      residenceCardFront: {
+        file: document.getElementById('inputResidenceCardFrontFile').files[0],
+        cameraData: document.getElementById('inputResidenceCardFrontCamera').value
+      },
+      residenceCardBack: {
+        file: document.getElementById('inputResidenceCardBackFile').files[0],
+        cameraData: document.getElementById('inputResidenceCardBackCamera').value
+      }
+    };
+
+    const saved = await submitCloudEmployee(empId, formValues, attachments);
+
+    showToast('تم حفظ وإكمال البيانات ورفع المستمسكات إلى السحابة بنجاح!', 'success');
+    document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${saved.fullName}`;
+    showView('employeeCompletedView');
   } catch (err) {
-    showToast('فشل في إرسال البيانات إلى الخادم', 'danger');
+    showToast('فشل في إرسال البيانات إلى السحابة: ' + err.message, 'danger');
   } finally {
     submitBtn.disabled = false;
     submitBtn.innerHTML = originalHtml;
