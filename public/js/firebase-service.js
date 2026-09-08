@@ -125,32 +125,47 @@ async function findCloudEmployeeByName(fullName) {
 }
 
 /**
- * Uploads an image (File or base64 data URL) to Firebase Storage and returns the public download URL
+ * Compresses any image (File, Blob, or base64) to high-quality lightweight JPEG data URL
+ */
+async function compressImageToDataUrl(fileOrDataUrl, maxWidth = 1024, quality = 0.82) {
+  if (!fileOrDataUrl) return '';
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve('');
+
+    if (typeof fileOrDataUrl === 'string') {
+      img.src = fileOrDataUrl;
+    } else if (fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File) {
+      const reader = new FileReader();
+      reader.onload = (e) => { img.src = e.target.result; };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(fileOrDataUrl);
+    } else {
+      resolve('');
+    }
+  });
+}
+
+/**
+ * Uploads an image (File or base64 data URL) and returns the lightweight URL/data
  */
 async function uploadImageToStorage(fileOrDataUrl, pathName) {
   if (!fileOrDataUrl) return '';
-
-  // If Storage is not ready or fails, we can fall back to storing the compressed dataUrl directly
-  if (!isFirebaseReady || !storage) {
-    if (typeof fileOrDataUrl === 'string') return fileOrDataUrl;
-    return '';
-  }
-
-  try {
-    const storageRef = storage.ref(pathName);
-
-    if (typeof fileOrDataUrl === 'string' && fileOrDataUrl.startsWith('data:image')) {
-      const snapshot = await storageRef.putString(fileOrDataUrl, 'data_url');
-      return await snapshot.ref.getDownloadURL();
-    } else if (fileOrDataUrl instanceof File || fileOrDataUrl instanceof Blob) {
-      const snapshot = await storageRef.put(fileOrDataUrl);
-      return await snapshot.ref.getDownloadURL();
-    }
-  } catch (err) {
-    console.warn(`Storage upload notice for ${pathName}, using direct image format:`, err.message);
-    if (typeof fileOrDataUrl === 'string') return fileOrDataUrl;
-  }
-  return '';
+  return await compressImageToDataUrl(fileOrDataUrl, 1024, 0.82);
 }
 
 /**
