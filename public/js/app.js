@@ -268,17 +268,17 @@ function renderEmployeesTable(employees) {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td style="font-weight: 800; color: var(--sage-700); text-align: center;">${index + 1}</td>
-      <td style="font-weight: 800; color: var(--sage-900); white-space: nowrap;">
+      <td style="text-align: center; font-weight: 800; color: var(--sage-700);">${index + 1}</td>
+      <td style="text-align: right; font-weight: 800; color: var(--sage-900); white-space: nowrap;">
         <span style="cursor: pointer; color: var(--sage-800);" onclick="openReviewEmployeeModal('${emp.id}')" title="انقر لعرض إضبارة الموظف">${quadName}</span>
       </td>
-      <td style="color: var(--sage-800);">${emp.motherName ? `<span style="font-weight: 700;">${emp.motherName}</span>` : '<span class="empty-val-badge">لم تُدخل</span>'}</td>
-      <td>${jobBadge}</td>
-      <td>${emp.jobTitle ? emp.jobTitle : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="direction: ltr; text-align: right; white-space: nowrap;">${emp.phone ? emp.phone : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: right; color: var(--sage-800);">${emp.motherName ? `<span style="font-weight: 700;">${emp.motherName}</span>` : '<span class="empty-val-badge">لم تُدخل</span>'}</td>
+      <td style="text-align: center;">${jobBadge}</td>
+      <td style="text-align: right;">${emp.jobTitle ? emp.jobTitle : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: center; white-space: nowrap;"><span dir="ltr" style="font-family: monospace; font-size: 0.92rem;">${emp.phone ? emp.phone : '<span class="empty-val-badge">—</span>'}</span></td>
       <td style="text-align: center;">${emp.bloodType ? `<span style="font-weight: 800; color: var(--danger);">${emp.bloodType}</span>` : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.unifiedId ? emp.unifiedId : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.familyNumber ? emp.familyNumber : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: center; font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.unifiedId ? emp.unifiedId : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: center; font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.familyNumber ? emp.familyNumber : '<span class="empty-val-badge">—</span>'}</td>
       <td style="text-align: center;">${photosBtnHtml}</td>
       <td style="text-align: center;">${statusBadge}</td>
       <td style="text-align: center;">

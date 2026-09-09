@@ -1011,8 +1011,9 @@ body {
 
 .hr-table {
   width: 100%;
-  border-collapse: collapse;
-  text-align: right;
+  min-width: 1420px;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.92rem;
 }
 
@@ -1020,13 +1021,14 @@ body {
   background: var(--sage-50);
   color: var(--sage-900);
   font-weight: 800;
-  padding: 1rem 1.25rem;
-  border-bottom: 2px solid var(--sage-200);
+  padding: 1.1rem 0.75rem;
+  border-bottom: 2px solid var(--sage-300);
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .hr-table td {
-  padding: 1rem 1.25rem;
+  padding: 0.9rem 0.75rem;
   border-bottom: 1px solid var(--offwhite-300);
   color: var(--text-primary);
   vertical-align: middle;
