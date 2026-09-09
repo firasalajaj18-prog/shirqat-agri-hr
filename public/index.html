@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.2.0">
+  <link rel="stylesheet" href="css/style.css?v=2.3.0">
 </head>
 <body>
 
@@ -589,20 +589,34 @@
       <!-- Main Data Table -->
       <div class="table-container">
         <table class="hr-table">
+          <colgroup>
+            <col style="width: 42px;">   <!-- 1. ت -->
+            <col style="width: 175px;">  <!-- 2. الاسم واللقب -->
+            <col style="width: 130px;">  <!-- 3. اسم الأم -->
+            <col style="width: 75px;">   <!-- 4. الصفة -->
+            <col style="width: 135px;">  <!-- 5. العنوان الوظيفي -->
+            <col style="width: 110px;">  <!-- 6. الهاتف -->
+            <col style="width: 65px;">   <!-- 7. الفصيلة -->
+            <col style="width: 115px;">  <!-- 8. البطاقة الموحدة -->
+            <col style="width: 100px;">  <!-- 9. الرقم العائلي -->
+            <col style="width: 105px;">  <!-- 10. المستمسكات -->
+            <col style="width: 95px;">   <!-- 11. الحالة -->
+            <col style="width: 95px;">   <!-- 12. الإجراءات -->
+          </colgroup>
           <thead>
             <tr>
-              <th style="width: 50px; text-align: center;">ت</th>
-              <th style="min-width: 220px; text-align: right;"><i class="fa-solid fa-user"></i> الاسم الكامل واللقب</th>
-              <th style="min-width: 170px; text-align: right;"><i class="fa-solid fa-person-breastfeeding"></i> اسم الأم الثلاثي</th>
-              <th style="width: 100px; text-align: center;"><i class="fa-solid fa-id-badge"></i> الصفة</th>
-              <th style="min-width: 150px; text-align: right;"><i class="fa-solid fa-briefcase"></i> العنوان الوظيفي</th>
-              <th style="width: 140px; text-align: center;"><i class="fa-solid fa-phone"></i> رقم الهاتف</th>
-              <th style="width: 95px; text-align: center;"><i class="fa-solid fa-droplet"></i> فصيلة الدم</th>
-              <th style="width: 150px; text-align: center;"><i class="fa-solid fa-address-card"></i> البطاقة الموحدة</th>
-              <th style="width: 140px; text-align: center;"><i class="fa-solid fa-users-rectangle"></i> الرقم العائلي</th>
-              <th style="width: 145px; text-align: center;"><i class="fa-solid fa-images"></i> المستمسكات والصور</th>
-              <th style="width: 135px; text-align: center;"><i class="fa-solid fa-circle-check"></i> حالة الاستمارة</th>
-              <th style="width: 135px; text-align: center;"><i class="fa-solid fa-sliders"></i> التحكم والإجراءات</th>
+              <th style="text-align: center;">ت</th>
+              <th style="text-align: right;"><i class="fa-solid fa-user"></i> الاسم واللقب</th>
+              <th style="text-align: right;"><i class="fa-solid fa-person-breastfeeding"></i> اسم الأم</th>
+              <th style="text-align: center;"><i class="fa-solid fa-id-badge"></i> الصفة</th>
+              <th style="text-align: right;"><i class="fa-solid fa-briefcase"></i> العنوان الوظيفي</th>
+              <th style="text-align: center;"><i class="fa-solid fa-phone"></i> الهاتف</th>
+              <th style="text-align: center;"><i class="fa-solid fa-droplet"></i> الفصيلة</th>
+              <th style="text-align: center;"><i class="fa-solid fa-address-card"></i> البطاقة الموحدة</th>
+              <th style="text-align: center;"><i class="fa-solid fa-users-rectangle"></i> الرقم العائلي</th>
+              <th style="text-align: center;"><i class="fa-solid fa-images"></i> المستمسكات</th>
+              <th style="text-align: center;"><i class="fa-solid fa-circle-check"></i> الحالة</th>
+              <th style="text-align: center;"><i class="fa-solid fa-sliders"></i> الإجراءات</th>
             </tr>
           </thead>
           <tbody id="employeesTableBody">
@@ -960,7 +974,7 @@
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
   <!-- Firebase Service & App Logic -->
-  <script src="js/firebase-service.js?v=2.2.0"></script>
-  <script src="js/app.js?v=2.2.0"></script>
+  <script src="js/firebase-service.js?v=2.3.0"></script>
+  <script src="js/app.js?v=2.3.0"></script>
 </body>
 </html>

@@ -269,21 +269,23 @@ function renderEmployeesTable(employees) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="text-align: center; font-weight: 800; color: var(--sage-700);">${index + 1}</td>
-      <td style="text-align: right; font-weight: 800; color: var(--sage-900); white-space: nowrap;">
-        <span style="cursor: pointer; color: var(--sage-800);" onclick="openReviewEmployeeModal('${emp.id}')" title="انقر لعرض إضبارة الموظف">${quadName}</span>
+      <td style="text-align: right; font-weight: 800; color: var(--sage-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        <span style="cursor: pointer; color: var(--sage-800);" onclick="openReviewEmployeeModal('${emp.id}')" title="${quadName}">${quadName}</span>
       </td>
-      <td style="text-align: right; color: var(--sage-800);">${emp.motherName ? `<span style="font-weight: 700;">${emp.motherName}</span>` : '<span class="empty-val-badge">لم تُدخل</span>'}</td>
+      <td style="text-align: right; color: var(--sage-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${emp.motherName || ''}">
+        ${emp.motherName ? `<span style="font-weight: 700;">${emp.motherName}</span>` : '<span class="empty-val-badge">لم تُدخل</span>'}
+      </td>
       <td style="text-align: center;">${jobBadge}</td>
-      <td style="text-align: right;">${emp.jobTitle ? emp.jobTitle : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="text-align: center; white-space: nowrap;"><span dir="ltr" style="font-family: monospace; font-size: 0.92rem;">${emp.phone ? emp.phone : '<span class="empty-val-badge">—</span>'}</span></td>
-      <td style="text-align: center;">${emp.bloodType ? `<span style="font-weight: 800; color: var(--danger);">${emp.bloodType}</span>` : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="text-align: center; font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.unifiedId ? emp.unifiedId : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="text-align: center; font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.familyNumber ? emp.familyNumber : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: right; font-weight: 600; line-height: 1.25; font-size: 0.83rem;" title="${emp.jobTitle || ''}">${emp.jobTitle ? emp.jobTitle : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: center; white-space: nowrap;"><span dir="ltr" style="font-family: monospace; font-size: 0.84rem;">${emp.phone ? emp.phone : '<span class="empty-val-badge">—</span>'}</span></td>
+      <td style="text-align: center;"><span dir="ltr" style="font-weight: 800; color: var(--danger); font-size: 0.85rem;">${emp.bloodType ? emp.bloodType : '<span class="empty-val-badge">—</span>'}</span></td>
+      <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">${emp.unifiedId ? emp.unifiedId : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">${emp.familyNumber ? emp.familyNumber : '<span class="empty-val-badge">—</span>'}</td>
       <td style="text-align: center;">${photosBtnHtml}</td>
       <td style="text-align: center;">${statusBadge}</td>
       <td style="text-align: center;">
-        <div style="display: inline-flex; gap: 0.35rem; align-items: center; justify-content: center;">
-          <button class="table-action-btn view" title="مراجعة إضبارة الموظف والمستمسكات بوجهيها" onclick="openReviewEmployeeModal('${emp.id}')">
+        <div style="display: inline-flex; gap: 0.25rem; align-items: center; justify-content: center;">
+          <button class="table-action-btn view" title="مراجعة إضبارة الموظف والصور" onclick="openReviewEmployeeModal('${emp.id}')">
             <i class="fa-solid fa-eye"></i>
           </button>
           <button class="table-action-btn" title="تعديل الموظف" onclick="openEditEmployeeModal('${emp.id}')">
