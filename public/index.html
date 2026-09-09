@@ -591,15 +591,18 @@
         <table class="hr-table">
           <thead>
             <tr>
-              <th style="width: 50px;">ت</th>
-              <th>الاسم الكامل واللقب</th>
-              <th>الصفة الوظيفية</th>
-              <th>العنوان الوظيفي</th>
-              <th>رقم الهاتف</th>
-              <th>فصيلة الدم</th>
-              <th>البطاقة الموحدة</th>
-              <th>حالة البيانات</th>
-              <th style="text-align: center;">إجراءات</th>
+              <th style="width: 45px; text-align: center;">ت</th>
+              <th><i class="fa-solid fa-user"></i> الاسم الكامل واللقب</th>
+              <th><i class="fa-solid fa-person-breastfeeding"></i> اسم الأم الثلاثي</th>
+              <th><i class="fa-solid fa-id-badge"></i> الصفة</th>
+              <th><i class="fa-solid fa-briefcase"></i> العنوان الوظيفي</th>
+              <th><i class="fa-solid fa-phone"></i> رقم الهاتف</th>
+              <th style="text-align: center;"><i class="fa-solid fa-droplet"></i> فصيلة الدم</th>
+              <th><i class="fa-solid fa-address-card"></i> البطاقة الموحدة</th>
+              <th><i class="fa-solid fa-users-rectangle"></i> الرقم العائلي</th>
+              <th style="text-align: center;"><i class="fa-solid fa-images"></i> المستمسكات والصور</th>
+              <th style="text-align: center;"><i class="fa-solid fa-circle-check"></i> حالة الاستمارة</th>
+              <th style="text-align: center;"><i class="fa-solid fa-sliders"></i> التحكم والإجراءات</th>
             </tr>
           </thead>
           <tbody id="employeesTableBody">
@@ -885,6 +888,47 @@
           <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> حفظ التعديلات</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: EMPLOYEE DOSSIER & PHOTO REVIEW ==================== -->
+  <div class="modal-overlay" id="reviewEmployeeModal">
+    <div class="modal-window dossier-modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-folder-open" style="color: var(--sage-700);"></i>
+          <span>إضبارة الموظف ومراجعة المستمسكات والصور الثبوتية</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('reviewEmployeeModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="reviewEmployeeModalBody" style="overflow-y: auto; max-height: calc(85vh - 130px);">
+        <!-- Filled dynamically by openReviewEmployeeModal(empId) -->
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <div id="dossierModalFooterInfo" style="font-size: 0.9rem; font-weight: 700; color: var(--sage-800);"></div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('reviewEmployeeModal')">إغلاق</button>
+          <button type="button" class="btn btn-primary" id="btnEditFromDossier">
+            <i class="fa-solid fa-pen-to-square"></i> تعديل بيانات الموظف
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== IMAGE LIGHTBOX ==================== -->
+  <div class="lightbox-overlay" id="imageLightbox" onclick="handleLightboxBackdropClick(event)">
+    <div class="lightbox-content">
+      <button class="lightbox-close" onclick="closeLightbox()" title="إغلاق">&times;</button>
+      <img id="lightboxImg" src="" alt="معاينة الصورة المكبرة">
+      <div class="lightbox-caption" id="lightboxCaption"></div>
+      <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center;">
+        <a id="lightboxDownloadBtn" href="" download="document.jpg" class="btn btn-sm btn-primary" style="background: var(--sage-600); text-decoration: none;">
+          <i class="fa-solid fa-download"></i> تنزيل هذه الصورة
+        </a>
+      </div>
     </div>
   </div>
 

@@ -222,15 +222,22 @@ function renderEmployeesTable(employees) {
   if (!employees || employees.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-          <i class="fa-solid fa-folder-open" style="font-size: 2.8rem; margin-bottom: 0.85rem; color: var(--sage-400);"></i>
-          <p style="font-weight: 800; font-size: 1.1rem; color: var(--sage-900);">لا توجد سجلات حالياً في السحابة</p>
-          <p style="font-size: 0.9rem; margin-top: 0.25rem;">يمكنك إضافة موظف أو استيراد أسماء من ملف Excel.</p>
+        <td colspan="12" style="text-align: center; padding: 3.5rem 1rem; color: var(--text-muted);">
+          <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 0.85rem; color: var(--sage-400);"></i>
+          <p style="font-weight: 800; font-size: 1.15rem; color: var(--sage-900); margin-bottom: 0.35rem;">لا توجد سجلات حالياً في السحابة</p>
+          <p style="font-size: 0.9rem; color: var(--text-secondary);">يمكنك إضافة موظف يدوياً أو استيراد الأسماء من ملف Excel.</p>
         </td>
       </tr>
     `;
     return;
   }
+
+  const photoKeys = [
+    'personalPhoto', 'medicalPhoto',
+    'empCardFront', 'empCardBack',
+    'idCardFront', 'idCardBack',
+    'residenceCardFront', 'residenceCardBack'
+  ];
 
   employees.forEach((emp, index) => {
     const quadName = [
@@ -249,22 +256,40 @@ function renderEmployeesTable(employees) {
       ? `<span class="status-badge job-contract">عقد</span>`
       : `<span class="status-badge job-regular">ملاك</span>`;
 
+    // Count uploaded documents/photos
+    const uploadedCount = photoKeys.filter(k => !!emp[k]).length;
+    const photosBtnHtml = uploadedCount > 0
+      ? `<button class="table-photos-btn ${uploadedCount === 8 ? 'completed' : ''}" onclick="openReviewEmployeeModal('${emp.id}')" title="عرض ومراجعة كافة المستمسكات والصور (${uploadedCount}/8)">
+          <i class="fa-solid fa-images"></i> <span>${uploadedCount}/8 صور</span>
+        </button>`
+      : `<button class="table-photos-btn" onclick="openReviewEmployeeModal('${emp.id}')" title="لا توجد صور مرفوعة بعد">
+          <i class="fa-solid fa-image-slash"></i> <span>لا توجد صور</span>
+        </button>`;
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td style="font-weight: 800; color: var(--sage-700);">${index + 1}</td>
-      <td style="font-weight: 700; color: var(--sage-900);">${quadName}</td>
+      <td style="font-weight: 800; color: var(--sage-700); text-align: center;">${index + 1}</td>
+      <td style="font-weight: 800; color: var(--sage-900); white-space: nowrap;">
+        <span style="cursor: pointer; color: var(--sage-800);" onclick="openReviewEmployeeModal('${emp.id}')" title="انقر لعرض إضبارة الموظف">${quadName}</span>
+      </td>
+      <td style="color: var(--sage-800);">${emp.motherName ? `<span style="font-weight: 700;">${emp.motherName}</span>` : '<span class="empty-val-badge">لم تُدخل</span>'}</td>
       <td>${jobBadge}</td>
-      <td>${emp.jobTitle || '—'}</td>
-      <td style="direction: ltr; text-align: right;">${emp.phone || '—'}</td>
-      <td style="text-align: center;"><span style="font-weight: 700; color: var(--danger);">${emp.bloodType || '—'}</span></td>
-      <td>${emp.unifiedId || '—'}</td>
-      <td>${statusBadge}</td>
+      <td>${emp.jobTitle ? emp.jobTitle : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="direction: ltr; text-align: right; white-space: nowrap;">${emp.phone ? emp.phone : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: center;">${emp.bloodType ? `<span style="font-weight: 800; color: var(--danger);">${emp.bloodType}</span>` : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.unifiedId ? emp.unifiedId : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="font-family: monospace; font-weight: 700; white-space: nowrap;">${emp.familyNumber ? emp.familyNumber : '<span class="empty-val-badge">—</span>'}</td>
+      <td style="text-align: center;">${photosBtnHtml}</td>
+      <td style="text-align: center;">${statusBadge}</td>
       <td style="text-align: center;">
-        <div style="display: inline-flex; gap: 0.35rem;">
+        <div style="display: inline-flex; gap: 0.35rem; align-items: center; justify-content: center;">
+          <button class="table-action-btn view" title="مراجعة إضبارة الموظف والمستمسكات بوجهيها" onclick="openReviewEmployeeModal('${emp.id}')">
+            <i class="fa-solid fa-eye"></i>
+          </button>
           <button class="table-action-btn" title="تعديل الموظف" onclick="openEditEmployeeModal('${emp.id}')">
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
-          <button class="table-action-btn delete" title="حذف الموظف" onclick="deleteEmployee('${emp.id}', '${quadName}')">
+          <button class="table-action-btn delete" title="حذف الموظف" onclick="deleteEmployee('${emp.id}', '${quadName.replace(/'/g, "\\'")}')">
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </div>
@@ -273,6 +298,226 @@ function renderEmployeesTable(employees) {
     tbody.appendChild(tr);
   });
 }
+
+// ==================== EMPLOYEE DOSSIER & PHOTO REVIEW MODAL ====================
+function openReviewEmployeeModal(empId) {
+  const emp = state.employeesList.find(e => e.id === empId);
+  if (!emp) return;
+
+  const quadName = [
+    emp.firstName || '',
+    emp.secondName || '',
+    emp.thirdName || '',
+    emp.fourthName || '',
+    emp.surname || ''
+  ].filter(Boolean).join(' ') || emp.fullName;
+
+  const photoDocs = [
+    { key: 'personalPhoto', title: '1- الصورة الشخصية الحديثة', note: 'بخلفية بيضاء نظامية', icon: 'fa-user' },
+    { key: 'medicalPhoto', title: '2- تقرير الفحص الطبي المعتمد', note: 'تقرير الفحص الطبي الصادر', icon: 'fa-file-medical' },
+    { key: 'empCardFront', title: '3- باج / هوية الموظف (الوجه الأمامي)', note: 'الوجه الأمامي لهوية الدائرة', icon: 'fa-id-badge' },
+    { key: 'empCardBack', title: '4- باج / هوية الموظف (الوجه الخلفي)', note: 'الوجه الخلفي لهوية الدائرة', icon: 'fa-id-badge' },
+    { key: 'idCardFront', title: '5- البطاقة الوطنية الموحدة (الوجه الأمامي)', note: 'الوجه الأمامي للبطاقة الوطنية', icon: 'fa-address-card' },
+    { key: 'idCardBack', title: '6- البطاقة الوطنية الموحدة (الوجه الخلفي)', note: 'الوجه الخلفي موضحاً الرقم العائلي', icon: 'fa-address-card' },
+    { key: 'residenceCardFront', title: '7- بطاقة السكن (الوجه الأمامي)', note: 'الوجه الأمامي لبطاقة السكن', icon: 'fa-house-user' },
+    { key: 'residenceCardBack', title: '8- بطاقة السكن (الوجه الخلفي)', note: 'الوجه الخلفي لبطاقة السكن والختم', icon: 'fa-house-user' }
+  ];
+
+  const uploadedCount = photoDocs.filter(d => !!emp[d.key]).length;
+
+  const body = document.getElementById('reviewEmployeeModalBody');
+  const footerInfo = document.getElementById('dossierModalFooterInfo');
+  const btnEdit = document.getElementById('btnEditFromDossier');
+
+  if (footerInfo) {
+    footerInfo.innerHTML = `حالة إنجاز المستمسكات: <span style="font-weight: 900; color: ${uploadedCount === 8 ? 'var(--success)' : (uploadedCount > 0 ? 'var(--warning-dark)' : 'var(--danger)')};">${uploadedCount} من أصل 8 مستمسكات مرفوعة</span>`;
+  }
+
+  if (btnEdit) {
+    btnEdit.onclick = () => {
+      closeModal('reviewEmployeeModal');
+      openEditEmployeeModal(emp.id);
+    };
+  }
+
+  // Personal avatar
+  const avatarHtml = emp.personalPhoto
+    ? `<img src="${emp.personalPhoto}" alt="${quadName}">`
+    : `<i class="fa-solid fa-user"></i>`;
+
+  // Build photo cards
+  const photoCardsHtml = photoDocs.map(doc => {
+    const photoUrl = emp[doc.key];
+    const cleanQuad = quadName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const docTitleSafe = doc.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    
+    if (photoUrl) {
+      return `
+        <div class="dossier-photo-card">
+          <div class="photo-card-head">
+            <span><i class="fa-solid ${doc.icon}" style="color: var(--sage-700);"></i> ${doc.title}</span>
+            <span class="status-badge completed" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-check"></i> متوفرة</span>
+          </div>
+          <div class="photo-thumb-container" onclick="openLightbox('${photoUrl}', '${docTitleSafe} - ${cleanQuad}')" title="انقر لتكبير وفحص الصورة">
+            <img src="${photoUrl}" alt="${doc.title}" loading="lazy">
+            <div class="photo-zoom-hint">
+              <i class="fa-solid fa-magnifying-glass-plus"></i> تكبير وفحص
+            </div>
+          </div>
+          <div class="photo-card-foot">
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">${doc.note}</span>
+            <div style="display: flex; gap: 0.35rem;">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="openLightbox('${photoUrl}', '${docTitleSafe} - ${cleanQuad}')" title="تكبير الصورة">
+                <i class="fa-solid fa-expand"></i>
+              </button>
+              <a href="${photoUrl}" download="${quadName.replace(/\s+/g, '_')}_${doc.key}.jpg" class="btn btn-sm btn-outline-success" title="تنزيل الصورة بجهازك">
+                <i class="fa-solid fa-download"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="dossier-photo-card" style="opacity: 0.85;">
+          <div class="photo-card-head" style="background: #f8fafc;">
+            <span><i class="fa-solid ${doc.icon}" style="color: #94a3b8;"></i> ${doc.title}</span>
+            <span class="status-badge pending" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-xmark"></i> لم تُرفع</span>
+          </div>
+          <div class="photo-thumb-container" style="background: #f8fafc; cursor: default;">
+            <div class="photo-missing-placeholder">
+              <i class="fa-solid fa-file-circle-xmark" style="font-size: 2.2rem; color: #cbd5e1;"></i>
+              <span style="font-size: 0.85rem; font-weight: 700; color: #94a3b8;">لم يقم الموظف برفع هذه الوثيقة بعد</span>
+            </div>
+          </div>
+          <div class="photo-card-foot" style="background: #f8fafc;">
+            <span style="font-size: 0.75rem; color: var(--text-muted);">${doc.note}</span>
+          </div>
+        </div>
+      `;
+    }
+  }).join('');
+
+  body.innerHTML = `
+    <!-- Dossier Header -->
+    <div class="dossier-header-card">
+      <div class="dossier-profile-info">
+        <div class="dossier-avatar-wrap" ${emp.personalPhoto ? `onclick="openLightbox('${emp.personalPhoto}', 'الصورة الشخصية - ${quadName.replace(/'/g, "\\'")}')" style="cursor: pointer;"` : ''} title="${emp.personalPhoto ? 'انقر لتكبير الصورة الشخصية' : ''}">
+          ${avatarHtml}
+        </div>
+        <div class="dossier-names-wrap">
+          <h3>${quadName}</h3>
+          <div class="dossier-badges">
+            <span class="status-badge ${emp.jobStatus === 'عقد' ? 'job-contract' : 'job-regular'}">
+              <i class="fa-solid fa-id-badge"></i> ${emp.jobStatus || 'ملاك'}
+            </span>
+            <span class="status-badge" style="background: var(--sage-100); color: var(--sage-800); border: 1px solid var(--sage-300);">
+              <i class="fa-solid fa-building"></i> ${emp.department || 'شعبة زراعة الشرقاط'}
+            </span>
+            ${emp.isCompleted
+              ? `<span class="status-badge completed"><i class="fa-solid fa-circle-check"></i> الاستمارة مكتملة</span>`
+              : `<span class="status-badge pending"><i class="fa-solid fa-clock"></i> بانتظار استكمال البيانات</span>`
+            }
+          </div>
+        </div>
+      </div>
+      <div>
+        <span style="background: #ffffff; padding: 0.6rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--sage-300); font-weight: 800; color: var(--sage-900); display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+          <i class="fa-solid fa-images" style="color: var(--sage-600); font-size: 1.15rem;"></i>
+          <span>المستمسكات: <strong style="color: ${uploadedCount === 8 ? 'var(--success)' : 'var(--sage-800)'}; font-size: 1.1rem;">${uploadedCount} / 8</strong></span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Official Details Grid -->
+    <div class="dossier-section-title">
+      <i class="fa-solid fa-clipboard-user"></i>
+      <span>المعلومات والبيانات الرسمية للموظف</span>
+    </div>
+
+    <div class="dossier-details-grid">
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-person-breastfeeding"></i> اسم الأم الثلاثي</span>
+        <span class="field-val">${emp.motherName || '<span class="empty-val-badge">لم يُدخل بعد</span>'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-address-card"></i> رقم البطاقة الموحدة</span>
+        <span class="field-val" style="font-family: monospace;">${emp.unifiedId || '<span class="empty-val-badge">لم يُدخل بعد</span>'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-users-rectangle"></i> الرقم العائلي</span>
+        <span class="field-val" style="font-family: monospace;">${emp.familyNumber || '<span class="empty-val-badge">لم يُدخل بعد</span>'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-droplet"></i> فصيلة الدم</span>
+        <span class="field-val" style="color: var(--danger); font-weight: 800;">${emp.bloodType || '<span class="empty-val-badge">—</span>'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-phone"></i> رقم الهاتف</span>
+        <span class="field-val" style="direction: ltr; text-align: right;">${emp.phone || '<span class="empty-val-badge">—</span>'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-briefcase"></i> العنوان الوظيفي</span>
+        <span class="field-val">${emp.jobTitle || '<span class="empty-val-badge">—</span>'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-user-tie"></i> المنصب المكلف به</span>
+        <span class="field-val">${emp.position || 'موظف'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-clock-rotate-left"></i> تاريخ آخر تحديث</span>
+        <span class="field-val" style="font-size: 0.85rem;">${emp.completedAt ? new Date(emp.completedAt).toLocaleString('ar-IQ') : '<span class="empty-val-badge">سجل غير محدث</span>'}</span>
+      </div>
+    </div>
+
+    <!-- Photos Grid -->
+    <div class="dossier-section-title">
+      <i class="fa-solid fa-camera-retro"></i>
+      <span>المستمسكات والوثائق الصورية المرفوعة بوجهيها (${uploadedCount} من أصل 8)</span>
+    </div>
+
+    <div class="dossier-photos-grid">
+      ${photoCardsHtml}
+    </div>
+  `;
+
+  openModal('reviewEmployeeModal');
+}
+
+// ==================== LIGHTBOX LOGIC ====================
+function openLightbox(imgSrc, caption) {
+  const lightbox = document.getElementById('imageLightbox');
+  const img = document.getElementById('lightboxImg');
+  const cap = document.getElementById('lightboxCaption');
+  const dl = document.getElementById('lightboxDownloadBtn');
+
+  if (img) img.src = imgSrc;
+  if (cap) cap.textContent = caption || 'معاينة المستمسك';
+  if (dl) {
+    dl.href = imgSrc;
+    dl.download = (caption ? caption.replace(/[\s\/\\]+/g, '_') : 'document') + '.jpg';
+  }
+  if (lightbox) lightbox.classList.add('active');
+}
+
+function closeLightbox() {
+  const lightbox = document.getElementById('imageLightbox');
+  if (lightbox) lightbox.classList.remove('active');
+}
+
+function handleLightboxBackdropClick(event) {
+  if (event.target.id === 'imageLightbox') {
+    closeLightbox();
+  }
+}
+
+// Close lightbox & review modal with keyboard Escape
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeLightbox();
+    closeModal('reviewEmployeeModal');
+  }
+});
 
 function filterEmployeesTable() {
   const search = document.getElementById('tableSearchInput').value.toLowerCase().trim();
@@ -293,7 +538,14 @@ function filterEmployeesTable() {
 
   if (search) {
     filtered = filtered.filter(e => {
-      const full = (e.fullName + ' ' + (e.jobTitle || '') + ' ' + (e.phone || '') + ' ' + (e.unifiedId || '')).toLowerCase();
+      const full = (
+        (e.fullName || '') + ' ' +
+        (e.motherName || '') + ' ' +
+        (e.familyNumber || '') + ' ' +
+        (e.jobTitle || '') + ' ' +
+        (e.phone || '') + ' ' +
+        (e.unifiedId || '')
+      ).toLowerCase();
       return full.includes(search);
     });
   }
