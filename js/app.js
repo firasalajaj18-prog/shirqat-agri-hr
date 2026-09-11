@@ -315,6 +315,8 @@ function openReviewEmployeeModal(empId) {
     emp.surname || ''
   ].filter(Boolean).join(' ') || emp.fullName;
 
+  const cleanQuad = quadName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
   const photoDocs = [
     { key: 'personalPhoto', title: '1- الصورة الشخصية الحديثة', note: 'بخلفية بيضاء نظامية', icon: 'fa-user' },
     { key: 'medicalPhoto', title: '2- تقرير الفحص الطبي المعتمد', note: 'تقرير الفحص الطبي الصادر', icon: 'fa-file-medical' },
@@ -351,7 +353,6 @@ function openReviewEmployeeModal(empId) {
   // Build photo cards
   const photoCardsHtml = photoDocs.map(doc => {
     const photoUrl = emp[doc.key];
-    const cleanQuad = quadName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     const docTitleSafe = doc.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     
     if (photoUrl) {
@@ -1086,28 +1087,53 @@ function checkEmployeePinStatus() {
   if (!nameInput || !codeLabel) return;
 
   const nameVal = nameInput.value.trim();
-  if (!nameVal || nameVal.length < 3) {
+  const searchWords = normalizeArabicText(nameVal).split(/\s+/).filter(Boolean);
+
+  // Require at least 3 words (First, Father, Grandfather) before identifying employee
+  if (searchWords.length < 3) {
     codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري / رمز الدخول';
     if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي أو رمز الدخول العام';
-    if (codeHelper) codeHelper.innerHTML = 'الرمز السري المعتمد للمتابعة';
+    if (codeHelper) codeHelper.innerHTML = 'الرمز السري المعتمد للمتابعة (يرجى كتابة الاسم الثلاثي أولاً)';
     return;
   }
 
+  const searchNorm = searchWords.join(' ');
   const emp = state.employeesList.find(e => {
-    const norm = normalizeArabicText(nameVal);
-    const fullNorm = normalizeArabicText(e.fullName);
-    const partsNorm = normalizeArabicText(`${e.firstName || ''} ${e.secondName || ''} ${e.thirdName || ''}`);
-    return fullNorm === norm || partsNorm === norm || fullNorm.includes(norm);
+    const dbWords = normalizeArabicText(e.fullName).split(/\s+/).filter(Boolean);
+    const dbPartsWords = normalizeArabicText(`${e.firstName || ''} ${e.secondName || ''} ${e.thirdName || ''}`).split(/\s+/).filter(Boolean);
+
+    // 1. Exact match with full name in DB
+    const dbNormFull = dbWords.join(' ');
+    if (dbNormFull === searchNorm) return true;
+
+    // 2. Exact match with 3 parts (first, second, third)
+    const dbNorm3Parts = dbPartsWords.slice(0, 3).join(' ');
+    const search3Parts = searchWords.slice(0, 3).join(' ');
+    if (dbNorm3Parts.length > 0 && dbNorm3Parts === search3Parts) return true;
+
+    // 3. If DB has 4 or 5 names, and search has first 3 names matching DB first 3 names
+    if (dbWords.length >= 3 && searchWords.length === 3) {
+      if (dbWords[0] === searchWords[0] && dbWords[1] === searchWords[1] && dbWords[2] === searchWords[2]) {
+        return true;
+      }
+    }
+
+    // 4. If search has 4 words and DB starts with them
+    if (dbWords.length >= searchWords.length) {
+      return searchWords.every((w, idx) => w === dbWords[idx]);
+    }
+
+    return false;
   });
 
   if (emp && emp.personalPin) {
     codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري الشخصي الخاص بك (PIN)';
     if (codeInput) codeInput.placeholder = 'أدخل رمزك السري الشخصي (4 - 6 أرقام)';
-    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> هذا الحساب مؤمن برمز سري خاص لا يعرفه إلا أنت';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> تم التعرف على الموظف: هذا الحساب مؤمن برمز سري خاص';
   } else if (emp && !emp.personalPin) {
     codeLabel.innerHTML = '<span class="required-star">*</span>رمز الدخول العام للموظفين';
     if (codeInput) codeInput.placeholder = 'أدخل رمز الدخول العام للموظفين (المرة الأولى)';
-    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-info-circle" style="color: #0369a1;"></i> سيُطلب منك تعيين رمز سري خاص في الخطوة التالية لحماية استمارتك';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-info-circle" style="color: #0369a1;"></i> تم التعرف على الموظف: سيُطلب منك تعيين رمز سري خاص لحماية استمارتك';
   } else {
     codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري / رمز الدخول';
     if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي أو رمز الدخول العام';
@@ -1123,6 +1149,14 @@ async function handleEmployeeVerify(event) {
 
   errorEl.style.display = 'none';
 
+  // Strict check: Require at least 3 names (First, Father, Grandfather)
+  const words = normalizeArabicText(fullName).split(/\s+/).filter(Boolean);
+  if (words.length < 3) {
+    errorEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> يرجى إدخال الاسم الثلاثي الكامل للموظف (ثلاث كلمات على الأقل: الاسم الأول واسم الأب واسم الجد).';
+    errorEl.style.display = 'flex';
+    return;
+  }
+
   try {
     const settings = state.cloudSettings || (await getCloudSettings());
     const validGeneralCode = settings.employeeGeneralCode || '1234';
@@ -1130,7 +1164,7 @@ async function handleEmployeeVerify(event) {
     const employee = await findCloudEmployeeByName(fullName);
 
     if (!employee) {
-      errorEl.textContent = 'عذراً، هذا الاسم غير مدرج ضمن قائمة موظفي شعبة زراعة الشرقاط. يرجى التواصل مع الدعم الفني أو مراجعة الإدارة.';
+      errorEl.textContent = 'عذراً، هذا الاسم غير مدرج ضمن قائمة موظفي شعبة زراعة الشرقاط. يرجى التأكد من كتابة الاسم الثلاثي بدقة أو مراجعة الإدارة.';
       errorEl.style.display = 'flex';
       return;
     }

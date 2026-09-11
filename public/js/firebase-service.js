@@ -111,16 +111,47 @@ async function getAllCloudEmployees() {
 }
 
 /**
- * Finds employee by Arabic name
+ * Finds employee by strict Arabic full 3-part name (requires at least 3 words)
  */
 async function findCloudEmployeeByName(fullName) {
   const employees = await getAllCloudEmployees();
-  const searchNorm = normalizeArabicText(fullName);
+  if (!fullName) return null;
+
+  const searchWords = normalizeArabicText(fullName).split(/\s+/).filter(Boolean);
+  // Must provide at least 3 names (First, Father, Grandfather)
+  if (searchWords.length < 3) {
+    return null;
+  }
+
+  const searchNorm = searchWords.join(' ');
 
   return employees.find(emp => {
-    const dbNormFull = normalizeArabicText(emp.fullName);
-    const dbNormParts = normalizeArabicText(`${emp.firstName || ''} ${emp.secondName || ''} ${emp.thirdName || ''}`);
-    return dbNormFull === searchNorm || dbNormParts === searchNorm || dbNormFull.includes(searchNorm);
+    const dbWords = normalizeArabicText(emp.fullName).split(/\s+/).filter(Boolean);
+    const dbPartsWords = normalizeArabicText(`${emp.firstName || ''} ${emp.secondName || ''} ${emp.thirdName || ''}`).split(/\s+/).filter(Boolean);
+
+    // 1. Exact match with full name in DB
+    const dbNormFull = dbWords.join(' ');
+    if (dbNormFull === searchNorm) return true;
+
+    // 2. Exact match with 3 parts (first, second, third)
+    const dbNorm3Parts = dbPartsWords.slice(0, 3).join(' ');
+    const search3Parts = searchWords.slice(0, 3).join(' ');
+    if (dbNorm3Parts.length > 0 && dbNorm3Parts === search3Parts) return true;
+
+    // 3. If DB has 4 or 5 names, and search has first 3 names matching the DB first 3 names
+    if (dbWords.length >= 3 && searchWords.length === 3) {
+      if (dbWords[0] === searchWords[0] && dbWords[1] === searchWords[1] && dbWords[2] === searchWords[2]) {
+        return true;
+      }
+    }
+
+    // 4. If search has 4 words and DB starts with them
+    if (dbWords.length >= searchWords.length) {
+      const matchAll = searchWords.every((w, idx) => w === dbWords[idx]);
+      if (matchAll) return true;
+    }
+
+    return false;
   });
 }
 
