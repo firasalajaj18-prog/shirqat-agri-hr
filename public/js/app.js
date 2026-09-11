@@ -81,6 +81,7 @@ function initEventListeners() {
   if (btnEmployee) {
     btnEmployee.addEventListener('click', () => {
       document.getElementById('employeeVerifyForm').reset();
+      checkEmployeePinStatus();
       const err = document.getElementById('employeeVerifyError');
       if (err) err.style.display = 'none';
       openModal('employeeVerifyModal');
@@ -469,6 +470,18 @@ function openReviewEmployeeModal(empId) {
       <div class="dossier-field-item">
         <span class="field-label"><i class="fa-solid fa-clock-rotate-left"></i> تاريخ آخر تحديث</span>
         <span class="field-val" style="font-size: 0.85rem;">${emp.completedAt ? new Date(emp.completedAt).toLocaleString('ar-IQ') : '<span class="empty-val-badge">سجل غير محدث</span>'}</span>
+      </div>
+      <div class="dossier-field-item">
+        <span class="field-label"><i class="fa-solid fa-key"></i> أمان الحساب والرمز السري</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem; flex-wrap: wrap;">
+          ${emp.personalPin
+            ? `<span class="status-badge completed" style="font-size: 0.74rem;"><i class="fa-solid fa-lock"></i> مؤمن برمز سري</span>
+               <button type="button" class="btn btn-sm btn-outline-danger" onclick="handleManagerResetPin('${emp.id}', '${cleanQuad}')" title="تصفير الرمز لتمكين الموظف من تعيين رمز جديد" style="padding: 0.15rem 0.5rem; font-size: 0.72rem;">
+                 <i class="fa-solid fa-rotate-left"></i> تصفير الرمز
+               </button>`
+            : `<span class="status-badge pending" style="font-size: 0.74rem;"><i class="fa-solid fa-lock-open"></i> غير معيّن بعد</span>`
+          }
+        </div>
       </div>
     </div>
 
@@ -960,6 +973,8 @@ function openEditEmployeeModal(empId) {
   document.getElementById('editJobStatus').value = emp.jobStatus || 'ملاك';
   document.getElementById('editJobTitle').value = emp.jobTitle || '';
   document.getElementById('editDepartment').value = emp.department || 'شعبة زراعة الشرقاط';
+  const pinInput = document.getElementById('editPersonalPin');
+  if (pinInput) pinInput.value = emp.personalPin || '';
 
   document.getElementById('employeeEditModalTitle').textContent = 'تعديل بيانات الموظف';
   openModal('employeeEditModal');
@@ -972,6 +987,7 @@ async function handleSaveEmployeeManual(event) {
   const jobStatus = document.getElementById('editJobStatus').value;
   const jobTitle = document.getElementById('editJobTitle').value.trim();
   const department = document.getElementById('editDepartment').value.trim();
+  const personalPin = (document.getElementById('editPersonalPin') ? document.getElementById('editPersonalPin').value.trim() : '');
 
   try {
     const words = fullName.split(/\s+/);
@@ -984,7 +1000,8 @@ async function handleSaveEmployeeManual(event) {
       surname: words.length > 4 ? words.slice(4).join(' ') : '',
       jobStatus,
       jobTitle,
-      department
+      department,
+      personalPin
     };
 
     if (id && db) {
@@ -1061,6 +1078,43 @@ async function handleSaveSettings(event) {
 }
 
 // ==================== EMPLOYEE FLOW ====================
+function checkEmployeePinStatus() {
+  const nameInput = document.getElementById('employeeCheckName');
+  const codeLabel = document.getElementById('employeeCodeLabel');
+  const codeInput = document.getElementById('employeeCheckCode');
+  const codeHelper = document.getElementById('employeeCodeHelper');
+  if (!nameInput || !codeLabel) return;
+
+  const nameVal = nameInput.value.trim();
+  if (!nameVal || nameVal.length < 3) {
+    codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري / رمز الدخول';
+    if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي أو رمز الدخول العام';
+    if (codeHelper) codeHelper.innerHTML = 'الرمز السري المعتمد للمتابعة';
+    return;
+  }
+
+  const emp = state.employeesList.find(e => {
+    const norm = normalizeArabicText(nameVal);
+    const fullNorm = normalizeArabicText(e.fullName);
+    const partsNorm = normalizeArabicText(`${e.firstName || ''} ${e.secondName || ''} ${e.thirdName || ''}`);
+    return fullNorm === norm || partsNorm === norm || fullNorm.includes(norm);
+  });
+
+  if (emp && emp.personalPin) {
+    codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري الشخصي الخاص بك (PIN)';
+    if (codeInput) codeInput.placeholder = 'أدخل رمزك السري الشخصي (4 - 6 أرقام)';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> هذا الحساب مؤمن برمز سري خاص لا يعرفه إلا أنت';
+  } else if (emp && !emp.personalPin) {
+    codeLabel.innerHTML = '<span class="required-star">*</span>رمز الدخول العام للموظفين';
+    if (codeInput) codeInput.placeholder = 'أدخل رمز الدخول العام للموظفين (المرة الأولى)';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-info-circle" style="color: #0369a1;"></i> سيُطلب منك تعيين رمز سري خاص في الخطوة التالية لحماية استمارتك';
+  } else {
+    codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري / رمز الدخول';
+    if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي أو رمز الدخول العام';
+    if (codeHelper) codeHelper.innerHTML = 'الرمز السري المعتمد للمتابعة';
+  }
+}
+
 async function handleEmployeeVerify(event) {
   event.preventDefault();
   const fullName = document.getElementById('employeeCheckName').value.trim();
@@ -1071,13 +1125,7 @@ async function handleEmployeeVerify(event) {
 
   try {
     const settings = state.cloudSettings || (await getCloudSettings());
-    const validCode = settings.employeeGeneralCode || '1234';
-
-    if (accessCode !== validCode) {
-      errorEl.textContent = 'رمز الدخول العام للموظفين غير صحيح، يرجى مراجعة إدارة الشعبة';
-      errorEl.style.display = 'flex';
-      return;
-    }
+    const validGeneralCode = settings.employeeGeneralCode || '1234';
 
     const employee = await findCloudEmployeeByName(fullName);
 
@@ -1087,19 +1135,129 @@ async function handleEmployeeVerify(event) {
       return;
     }
 
-    closeModal('employeeVerifyModal');
     state.currentEmployee = employee;
 
-    if (employee.isCompleted) {
-      document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${employee.fullName}`;
-      showView('employeeCompletedView');
+    // 1. Check if employee has a personal PIN:
+    if (employee.personalPin) {
+      if (accessCode !== employee.personalPin) {
+        errorEl.innerHTML = '<i class="fa-solid fa-lock"></i> الرمز السري الشخصي غير صحيح. هذا الحساب مؤمن برمز سري خاص لحماية الاستمارة. إذا نسيت رمزك، يرجى مراجعة إدارة الشعبة لتصفيره.';
+        errorEl.style.display = 'flex';
+        return;
+      }
+
+      // Successful login with personal PIN!
+      closeModal('employeeVerifyModal');
+      showToast(`مرحباً بك، الموظف: ${employee.fullName}`, 'success');
+
+      if (employee.isCompleted) {
+        document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${employee.fullName}`;
+        showView('employeeCompletedView');
+      } else {
+        populateEmployeeForm(employee);
+        showView('employeeFormView');
+      }
     } else {
-      populateEmployeeForm(employee);
-      showView('employeeFormView');
+      // 2. First-time or reset user: verify with general code
+      if (accessCode !== validGeneralCode) {
+        errorEl.textContent = 'رمز الدخول العام للموظفين غير صحيح. يرجى إدخال رمز الشعبة المعتمد لتعيين رمزك السري الشخصي.';
+        errorEl.style.display = 'flex';
+        return;
+      }
+
+      // General code passed! Require creating personal PIN immediately
+      closeModal('employeeVerifyModal');
+      openSetPersonalPinModal(employee);
     }
   } catch (err) {
     errorEl.textContent = 'تعذر التحقق السحابي، يرجى المحاولة ثانيةً';
     errorEl.style.display = 'flex';
+  }
+}
+
+function openSetPersonalPinModal(employee) {
+  document.getElementById('setPersonalPinForm').reset();
+  document.getElementById('pinEmployeeId').value = employee.id;
+  document.getElementById('pinEmployeeNameDisplay').textContent = `أهلاً بك، الموظف: ${employee.fullName}`;
+  const err = document.getElementById('setPinError');
+  if (err) err.style.display = 'none';
+  openModal('setPersonalPinModal');
+}
+
+function openChangeMyPinModal() {
+  if (!state.currentEmployee) return;
+  openSetPersonalPinModal(state.currentEmployee);
+}
+
+async function handleSavePersonalPin(event) {
+  event.preventDefault();
+  const empId = document.getElementById('pinEmployeeId').value;
+  const pin = document.getElementById('newPersonalPin').value.trim();
+  const confirmPin = document.getElementById('confirmPersonalPin').value.trim();
+  const errorEl = document.getElementById('setPinError');
+
+  errorEl.style.display = 'none';
+
+  if (!/^[0-9]{4,6}$/.test(pin)) {
+    errorEl.textContent = 'يجب أن يتكون الرمز السري من 4 إلى 6 أرقام فقط (أرقام إنجليزية).';
+    errorEl.style.display = 'flex';
+    return;
+  }
+
+  if (pin !== confirmPin) {
+    errorEl.textContent = 'الرمز السري وتأكيد الرمز غير متطابقين، يرجى كتابتهما بدقة.';
+    errorEl.style.display = 'flex';
+    return;
+  }
+
+  const btn = document.getElementById('btnSavePin');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري حفظ الرمز وتأمين الحساب...`;
+
+  try {
+    await setEmployeePersonalPin(empId, pin);
+
+    // Update local state
+    if (state.currentEmployee) {
+      state.currentEmployee.personalPin = pin;
+    }
+    const localEmp = state.employeesList.find(e => e.id === empId);
+    if (localEmp) localEmp.personalPin = pin;
+
+    closeModal('setPersonalPinModal');
+    showToast('🎉 تم تعيين رمزك السري وتأمين حسابك بنجاح! احتفظ برمزك السري.', 'success');
+
+    if (state.currentEmployee && state.currentEmployee.isCompleted) {
+      document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${state.currentEmployee.fullName}`;
+      showView('employeeCompletedView');
+    } else if (state.currentEmployee) {
+      populateEmployeeForm(state.currentEmployee);
+      showView('employeeFormView');
+    }
+  } catch (err) {
+    errorEl.textContent = 'فشل في حفظ الرمز السري: ' + err.message;
+    errorEl.style.display = 'flex';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+async function handleManagerResetPin(empId, empName) {
+  if (!confirm(`هل أنت متأكد من تصفير الرمز السري للموظف: "${empName}"؟\nسيتمكن الموظف من الدخول بالرمز العام وتعيين رمز سري جديد.`)) {
+    return;
+  }
+
+  try {
+    await resetEmployeePersonalPin(empId);
+    const emp = state.employeesList.find(e => e.id === empId);
+    if (emp) emp.personalPin = '';
+
+    showToast(`تم تصفير الرمز السري للموظف (${empName}) بنجاح`, 'success');
+    closeModal('reviewEmployeeModal');
+    await loadManagerDashboard();
+  } catch (err) {
+    showToast('فشل في تصفير الرمز السري: ' + err.message, 'danger');
   }
 }
 

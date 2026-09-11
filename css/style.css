@@ -1528,6 +1528,28 @@ body {
   color: #ffffff;
 }
 
+.btn-outline-danger {
+  border: 1.5px solid #ef4444;
+  color: #dc2626;
+  background: transparent;
+  font-weight: 800;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: var(--transition-smooth);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.btn-outline-danger:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+
 /* ==================== TABLE ENHANCEMENTS & PHOTOS BUTTON ==================== */
 .table-photos-btn {
   background: var(--sage-50);

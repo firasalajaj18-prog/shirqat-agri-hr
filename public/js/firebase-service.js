@@ -354,3 +354,24 @@ async function clearAllCloudEmployees() {
 
   return count;
 }
+
+/**
+ * Sets personal PIN for an employee
+ */
+async function setEmployeePersonalPin(empId, pin) {
+  if (!isFirebaseReady || !db) throw new Error('السحابة غير متصلة');
+  const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
+  await empRef.set({ personalPin: String(pin).trim() }, { merge: true });
+  return true;
+}
+
+/**
+ * Resets personal PIN for an employee (Manager only)
+ */
+async function resetEmployeePersonalPin(empId) {
+  if (!isFirebaseReady || !db) throw new Error('السحابة غير متصلة');
+  const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
+  await empRef.set({ personalPin: '' }, { merge: true });
+  return true;
+}
+

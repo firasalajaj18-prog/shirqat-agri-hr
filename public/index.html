@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.3.0">
+  <link rel="stylesheet" href="css/style.css?v=2.4.0">
 </head>
 <body>
 
@@ -166,6 +166,17 @@
           </div>
           <button class="btn btn-secondary" onclick="showView('homeView')">
             <i class="fa-solid fa-xmark"></i> إلغاء ورجوع
+          </button>
+        </div>
+
+        <!-- Security PIN Banner -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--sage-50); border: 1.5px solid var(--sage-300); border-radius: var(--radius-md); padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.65rem; color: var(--sage-900); font-weight: 700; font-size: 0.92rem;">
+            <i class="fa-solid fa-shield-halved" style="color: var(--sage-600); font-size: 1.35rem;"></i>
+            <span>حسابك مؤمن برمز سري شخصي (PIN) لمنع أي شخص آخر من الوصول لبياناتك ومستمسكاتك</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="openChangeMyPinModal()" style="font-size: 0.82rem;">
+            <i class="fa-solid fa-key"></i> تغيير رمزي السري
           </button>
         </div>
 
@@ -679,19 +690,63 @@
 
           <div class="form-group">
             <label class="form-label"><span class="required-star">*</span>الاسم الثلاثي للموظف</label>
-            <input type="text" id="employeeCheckName" class="form-input" placeholder="اكتب اسمك الثلاثي كما هو معتمد في الشعبة" required autofocus>
+            <input type="text" id="employeeCheckName" class="form-input" placeholder="اكتب اسمك الثلاثي كما هو معتمد في الشعبة" required autofocus oninput="checkEmployeePinStatus()">
             <span class="input-helper">مثال: أحمد علي حسين</span>
           </div>
 
           <div class="form-group">
-            <label class="form-label"><span class="required-star">*</span>رمز الدخول العام للموظفين</label>
-            <input type="password" id="employeeCheckCode" class="form-input" placeholder="أدخل الرمز العام المعتمد للدخول" required>
-            <span class="input-helper">الرمز الذي تم تزويدك به من قبل إدارة الشعبة</span>
+            <label class="form-label" id="employeeCodeLabel"><span class="required-star">*</span>الرمز السري / رمز الدخول</label>
+            <input type="password" id="employeeCheckCode" class="form-input" placeholder="أدخل الرمز السري الشخصي أو رمز الدخول العام" required>
+            <span class="input-helper" id="employeeCodeHelper">الرمز السري المعتمد للمتابعة</span>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModal('employeeVerifyModal')">إلغاء</button>
           <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> تحقق ومتابعة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: SET PERSONAL PIN ==================== -->
+  <div class="modal-overlay" id="setPersonalPinModal">
+    <div class="modal-window" style="max-width: 500px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i>
+          <span>تأمين الحساب - تعيين الرمز السري الشخصي</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('setPersonalPinModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form id="setPersonalPinForm" onsubmit="handleSavePersonalPin(event)">
+        <input type="hidden" id="pinEmployeeId">
+        <div class="modal-body">
+          <div class="custom-alert alert-info" style="margin-bottom: 1.25rem;">
+            <i class="fa-solid fa-lock" style="font-size: 1.2rem;"></i>
+            <div>
+              <strong id="pinEmployeeNameDisplay" style="display: block; margin-bottom: 0.25rem;">أهلاً بك</strong>
+              <span style="font-size: 0.88rem; line-height: 1.5; display: block;">لحماية خصوصية بياناتك ومستمسكاتك الرسمية ومنع أي شخص آخر من الدخول إليها، يرجى إنشاء رمز سري خاص بك (من 4 إلى 6 أرقام) تحفظه جيداً للدخول به دائماً.</span>
+            </div>
+          </div>
+
+          <div id="setPinError" class="custom-alert alert-danger" style="display: none;"></div>
+
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label"><span class="required-star">*</span>الرمز السري الشخصي الجديد (4 - 6 أرقام)</label>
+            <input type="password" id="newPersonalPin" class="form-input" placeholder="مثال: 5821" maxlength="6" pattern="[0-9]{4,6}" inputmode="numeric" required autofocus>
+            <span class="input-helper">أدخل من 4 إلى 6 أرقام تحفظها جيداً للدخول في المرات القادمة</span>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label class="form-label"><span class="required-star">*</span>تأكيد الرمز السري</label>
+            <input type="password" id="confirmPersonalPin" class="form-input" placeholder="أعد كتابة الرمز السري للتأكيد" maxlength="6" pattern="[0-9]{4,6}" inputmode="numeric" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('setPersonalPinModal')">إلغاء</button>
+          <button type="submit" class="btn btn-primary" id="btnSavePin"><i class="fa-solid fa-shield-check"></i> حفظ الرمز وتأمين الحساب</button>
         </div>
       </form>
     </div>
@@ -852,6 +907,16 @@
             <label class="form-label">الدائرة / الشعبة</label>
             <input type="text" id="editDepartment" class="form-input" value="شعبة زراعة الشرقاط">
           </div>
+          <div class="form-group">
+            <label class="form-label"><i class="fa-solid fa-key"></i> الرمز السري الشخصي للموظف (PIN)</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="editPersonalPin" class="form-input" placeholder="أدخل 4-6 أرقام أو اتركه فارغاً" maxlength="6">
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('editPersonalPin').value = ''" title="مسح وتصفير الرمز">
+                <i class="fa-solid fa-rotate-left"></i> تصفير
+              </button>
+            </div>
+            <span class="input-helper">يمكن للمدير تعديل أو تصفير الرمز السري للموظف إذا نسيه</span>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModal('employeeEditModal')">إلغاء</button>
@@ -974,7 +1039,7 @@
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
   <!-- Firebase Service & App Logic -->
-  <script src="js/firebase-service.js?v=2.3.0"></script>
-  <script src="js/app.js?v=2.3.0"></script>
+  <script src="js/firebase-service.js?v=2.4.0"></script>
+  <script src="js/app.js?v=2.4.0"></script>
 </body>
 </html>
