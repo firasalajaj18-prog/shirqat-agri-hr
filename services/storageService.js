@@ -406,18 +406,21 @@ async function executeMasterSave(data, uploadsDir, configuredPath) {
 
     const safeFolderName = folderName.replace(/[\\/:*?"<>|]/g, '_').trim();
     const empDir = path.join(employeesFolder, safeFolderName);
-    await fs.ensureDir(empDir);
+    const personalAndMedicalDir = path.join(empDir, 'الصورة الشخصية والفحص');
+    const documentsDir = path.join(empDir, 'المستمسكات والوثائق');
+    await fs.ensureDir(personalAndMedicalDir);
+    await fs.ensureDir(documentsDir);
 
-    // List of all possible photo attachments including 2-sided
+    // List of all possible photo attachments organized by subfolder
     const attachments = [
-      { key: 'personalPhoto', filename: 'الصورة_الشخصية.jpg' },
-      { key: 'medicalPhoto', filename: 'الفحص_الطبي.jpg' },
-      { key: 'empCardFront', filename: 'هوية_الموظف_الوجه_الامامي.jpg' },
-      { key: 'empCardBack', filename: 'هوية_الموظف_الوجه_الخلفي.jpg' },
-      { key: 'idCardFront', filename: 'البطاقة_الموحدة_الوجه_الامامي.jpg' },
-      { key: 'idCardBack', filename: 'البطاقة_الموحدة_الوجه_الخلفي.jpg' },
-      { key: 'residenceCardFront', filename: 'بطاقة_السكن_الوجه_الامامي.jpg' },
-      { key: 'residenceCardBack', filename: 'بطاقة_السكن_الوجه_الخلفي.jpg' }
+      { key: 'personalPhoto', filename: 'الصورة_الشخصية.jpg', subfolder: personalAndMedicalDir },
+      { key: 'medicalPhoto', filename: 'الفحص_الطبي.jpg', subfolder: personalAndMedicalDir },
+      { key: 'empCardFront', filename: 'هوية_الموظف_الوجه_الامامي.jpg', subfolder: documentsDir },
+      { key: 'empCardBack', filename: 'هوية_الموظف_الوجه_الخلفي.jpg', subfolder: documentsDir },
+      { key: 'idCardFront', filename: 'البطاقة_الموحدة_الوجه_الامامي.jpg', subfolder: documentsDir },
+      { key: 'idCardBack', filename: 'البطاقة_الموحدة_الوجه_الخلفي.jpg', subfolder: documentsDir },
+      { key: 'residenceCardFront', filename: 'بطاقة_السكن_الوجه_الامامي.jpg', subfolder: documentsDir },
+      { key: 'residenceCardBack', filename: 'بطاقة_السكن_الوجه_الخلفي.jpg', subfolder: documentsDir }
     ];
 
     let savedPhotosCount = 0;
@@ -430,7 +433,7 @@ async function executeMasterSave(data, uploadsDir, configuredPath) {
           : path.join(uploadsDir, path.basename(photoVal));
 
         if (await fs.pathExists(sourcePhoto)) {
-          const destPhoto = path.join(empDir, item.filename);
+          const destPhoto = path.join(item.subfolder, item.filename);
           await saveAsJpg(sourcePhoto, destPhoto);
           savedPhotosCount++;
         }

@@ -804,37 +804,40 @@ async function triggerMasterSave() {
     const excelBuf = await workbook.xlsx.writeBuffer();
     mainFolder.file('بيانات_الموظفين_شعبة_زراعة_الشرقاط.xlsx', excelBuf);
 
-    // 2. Add employee folders with their attachments
+    // 2. Add employee folders with their attachments into two subfolders
     const empRootFolder = mainFolder.folder('ملفات_الموظفين');
 
     const photoFields = [
-      { key: 'personalPhoto', name: 'الصورة_الشخصية.jpg' },
-      { key: 'medicalPhoto', name: 'الفحص_الطبي.jpg' },
-      { key: 'empCardFront', name: 'هوية_الموظف_الوجه_الامامي.jpg' },
-      { key: 'empCardBack', name: 'هوية_الموظف_الوجه_الخلفي.jpg' },
-      { key: 'idCardFront', name: 'البطاقة_الموحدة_الوجه_الامامي.jpg' },
-      { key: 'idCardBack', name: 'البطاقة_الموحدة_الوجه_الخلفي.jpg' },
-      { key: 'residenceCardFront', name: 'بطاقة_السكن_الوجه_الامامي.jpg' },
-      { key: 'residenceCardBack', name: 'بطاقة_السكن_الوجه_الخلفي.jpg' }
+      { key: 'personalPhoto', name: 'الصورة_الشخصية.jpg', group: 'personalAndMedical' },
+      { key: 'medicalPhoto', name: 'الفحص_الطبي.jpg', group: 'personalAndMedical' },
+      { key: 'empCardFront', name: 'هوية_الموظف_الوجه_الامامي.jpg', group: 'documents' },
+      { key: 'empCardBack', name: 'هوية_الموظف_الوجه_الخلفي.jpg', group: 'documents' },
+      { key: 'idCardFront', name: 'البطاقة_الموحدة_الوجه_الامامي.jpg', group: 'documents' },
+      { key: 'idCardBack', name: 'البطاقة_الموحدة_الوجه_الخلفي.jpg', group: 'documents' },
+      { key: 'residenceCardFront', name: 'بطاقة_السكن_الوجه_الامامي.jpg', group: 'documents' },
+      { key: 'residenceCardBack', name: 'بطاقة_السكن_الوجه_الخلفي.jpg', group: 'documents' }
     ];
 
     let downloadedCount = 0;
     for (const emp of state.employeesList) {
       const folderNameClean = (emp.fullName || `موظف_${emp.id}`).replace(/[\\/:*?"<>|]/g, '_').trim();
       const singleEmpFolder = empRootFolder.folder(folderNameClean);
+      const personalAndMedicalFolder = singleEmpFolder.folder('الصورة الشخصية والفحص');
+      const documentsFolder = singleEmpFolder.folder('المستمسكات والوثائق');
 
       for (const p of photoFields) {
         const url = emp[p.key];
         if (url) {
           try {
+            const targetFolder = p.group === 'personalAndMedical' ? personalAndMedicalFolder : documentsFolder;
             if (url.startsWith('data:image')) {
               const base64Data = url.split(',')[1];
-              singleEmpFolder.file(p.name, base64Data, { base64: true });
+              targetFolder.file(p.name, base64Data, { base64: true });
             } else {
               const fetchRes = await fetch(url);
               if (fetchRes.ok) {
                 const blob = await fetchRes.blob();
-                singleEmpFolder.file(p.name, blob);
+                targetFolder.file(p.name, blob);
               }
             }
           } catch (e) {
