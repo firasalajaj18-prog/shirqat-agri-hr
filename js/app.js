@@ -162,13 +162,6 @@ function clearManagerLoginForm() {
   if (formEl) formEl.reset();
 }
 
-function quickFillManagerLogin() {
-  const u = document.getElementById('managerUsername');
-  const p = document.getElementById('managerPassword');
-  if (u) u.value = 'admin';
-  if (p) p.value = 'admin2024';
-}
-
 async function handleManagerLogin(event) {
   event.preventDefault();
   const username = document.getElementById('managerUsername').value.trim();
@@ -1948,14 +1941,7 @@ async function handleEmployeeVerify(event) {
     }
 
     if (!employee) {
-      errorEl.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
-          <span>عذراً، هذا الاسم غير مدرج ضمن قائمة الموظفين المسجلين.</span>
-          <button type="button" class="btn btn-sm btn-success" onclick="startNewEmployeeDirectly()" style="background: #10b981; border: none; font-weight: 800; padding: 0.5rem 1rem;">
-            <i class="fa-solid fa-file-circle-plus"></i> انقر هنا لإنشاء استمارة جديدة بهذا الاسم والدخول فوراً
-          </button>
-        </div>
-      `;
+      errorEl.textContent = 'عذراً، هذا الاسم غير مدرج ضمن قائمة موظفي شعبة زراعة الشرقاط. يرجى التأكد من كتابة الاسم الثلاثي بدقة أو مراجعة الإدارة.';
       errorEl.style.display = 'flex';
       return;
     }

@@ -784,26 +784,14 @@
         <div class="modal-body">
           <div id="managerLoginError" class="custom-alert alert-danger" style="display: none;"></div>
 
-          <!-- Credentials Helper Banner -->
-          <div class="custom-alert alert-info" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1.15rem; background: #eff6ff; border: 1.5px solid #93c5fd; color: #1e40af; border-radius: var(--radius-md); padding: 0.75rem 1rem;">
-            <div>
-              <i class="fa-solid fa-circle-info" style="color: #2563eb; margin-left: 0.35rem;"></i>
-              <strong>بيانات الدخول الرسمية:</strong><br>
-              <span style="font-size: 0.88rem;">اسم المستخدم: <code style="background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: 800;">admin</code> | كلمة المرور: <code style="background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: 800;">admin2024</code></span>
-            </div>
-            <button type="button" class="btn btn-sm btn-primary" onclick="quickFillManagerLogin()" style="font-size: 0.8rem; padding: 0.35rem 0.75rem; white-space: nowrap;">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> تعبئة تلقائية
-            </button>
-          </div>
-
           <div class="form-group">
             <label class="form-label"><i class="fa-solid fa-user"></i> اسم المستخدم (Username)</label>
-            <input type="text" id="managerUsername" class="form-input" placeholder="اسم المستخدم الخاص بالمدير" value="admin" autocomplete="new-password" required>
+            <input type="text" id="managerUsername" class="form-input" placeholder="اسم المستخدم الخاص بالمدير" autocomplete="new-password" required>
           </div>
           <div class="form-group">
             <label class="form-label"><i class="fa-solid fa-key"></i> كلمة المرور (Password)</label>
             <div style="position: relative; display: flex; align-items: center;">
-              <input type="password" id="managerPassword" class="form-input" placeholder="كلمة المرور (admin2024)" autocomplete="new-password" required style="padding-left: 2.75rem;">
+              <input type="password" id="managerPassword" class="form-input" placeholder="كلمة المرور" autocomplete="new-password" required style="padding-left: 2.75rem;">
               <button type="button" onclick="togglePasswordVisibility('managerPassword', this)" style="position: absolute; left: 10px; background: none; border: none; color: var(--sage-700); cursor: pointer; font-size: 1.1rem; padding: 0.25rem;" title="إظهار / إخفاء">
                 <i class="fa-solid fa-eye"></i>
               </button>
@@ -820,7 +808,7 @@
 
   <!-- ==================== MODAL: EMPLOYEE VERIFICATION ==================== -->
   <div class="modal-overlay" id="employeeVerifyModal">
-    <div class="modal-window" style="max-width: 540px;">
+    <div class="modal-window" style="max-width: 500px;">
       <div class="modal-header">
         <div class="modal-title">
           <i class="fa-solid fa-id-card" style="color: var(--sage-700);"></i>
@@ -834,21 +822,11 @@
         <div class="modal-body">
           <div id="employeeVerifyError" class="custom-alert alert-danger" style="display: none;"></div>
 
-          <!-- Quick Select from Employees List -->
-          <div class="form-group" style="margin-bottom: 1.15rem; background: var(--sage-50); padding: 0.85rem; border-radius: var(--radius-md); border: 1.5px solid var(--sage-300);">
-            <label class="form-label" style="font-weight: 800; color: var(--sage-900); margin-bottom: 0.35rem;">
-              <i class="fa-solid fa-users" style="color: var(--sage-700);"></i> طريقة سهلة: اختر اسمك مباشرة من قائمة الشعبة
-            </label>
-            <select id="employeeCheckSelect" class="form-select" onchange="handleSelectEmployeeQuick(this.value)">
-              <option value="">-- اضغط هنا لاختيار اسمك من قائمة الموظفين --</option>
-            </select>
-          </div>
-
           <!-- Type or Search Name with Live Autocomplete -->
           <div class="form-group">
-            <label class="form-label"><span class="required-star">*</span>أو اكتب الاسم الثلاثي / الرباعي للموظف</label>
+            <label class="form-label"><span class="required-star">*</span>الاسم الثلاثي أو الرباعي للموظف</label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="employeeCheckName" class="form-input" placeholder="اكتب اسمك الثلاثي (مثال: عيدان فايز أو وفاء عبدالعزيز)" required autofocus oninput="handleEmployeeNameInput(this.value)">
+              <input type="text" id="employeeCheckName" class="form-input" placeholder="اكتب اسمك الثلاثي كما هو معتمد في الشعبة" required autofocus oninput="handleEmployeeNameInput(this.value)">
               <div id="employeeNameSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
             </div>
             <span class="input-helper">تظهر اقتراحات الأسماء تلقائياً أثناء كتابتك للأحرف.</span>
@@ -858,21 +836,14 @@
           <div class="form-group">
             <label class="form-label" id="employeeCodeLabel"><span class="required-star">*</span>رمز الدخول أو الرمز السري الخاص بك (PIN)</label>
             <div style="position: relative; display: flex; align-items: center;">
-              <input type="password" id="employeeCheckCode" class="form-input" placeholder="أدخل رمز الدخول (1234) أو رمزك السري" required style="padding-left: 2.75rem; font-weight: 700; letter-spacing: 2px;">
+              <input type="password" id="employeeCheckCode" class="form-input" placeholder="أدخل رمز الدخول أو رمزك السري" required style="padding-left: 2.75rem; font-weight: 700; letter-spacing: 2px;">
               <button type="button" onclick="togglePasswordVisibility('employeeCheckCode', this)" style="position: absolute; left: 10px; background: none; border: none; color: var(--sage-700); cursor: pointer; font-size: 1.1rem; padding: 0.25rem;" title="إظهار / إخفاء الرمز">
                 <i class="fa-solid fa-eye"></i>
               </button>
             </div>
             <span class="input-helper" id="employeeCodeHelper" style="color: var(--sage-800); font-weight: 600; margin-top: 0.35rem; display: block;">
-              <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> رمز الدخول العام المعتمد: <strong>1234</strong> أو الرمز السري الشخصي الذي عيّنته مسبقاً.
+              أدخل رمز الدخول العام للموظفين أو الرمز السري الشخصي الخاص بك.
             </span>
-          </div>
-
-          <!-- 1-Click New Employee Registration -->
-          <div style="margin-top: 1.15rem; padding-top: 0.85rem; border-top: 1px dashed var(--sage-300); text-align: center;">
-            <button type="button" class="btn btn-outline-success" onclick="startNewEmployeeDirectly()" style="width: 100%; font-weight: 800; padding: 0.65rem 1rem;">
-              <i class="fa-solid fa-user-plus"></i> لست مسجلاً في القائمة؟ إنشاء استمارة جديدة والدخول فوراً
-            </button>
           </div>
         </div>
         <div class="modal-footer">
