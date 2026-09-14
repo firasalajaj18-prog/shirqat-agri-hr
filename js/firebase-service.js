@@ -38,11 +38,11 @@ const COLLECTIONS = {
 };
 
 /**
- * Normalizes Arabic string for matching
+ * Normalizes Arabic string for matching with smart compound name handling
  */
 function normalizeArabicText(text) {
   if (!text) return '';
-  return String(text)
+  let s = String(text)
     .trim()
     .replace(/[أإآآ]/g, 'ا')
     .replace(/[ة]/g, 'ه')
@@ -50,6 +50,13 @@ function normalizeArabicText(text) {
     .replace(/[\u064B-\u065F\u0670]/g, '')
     .replace(/\s+/g, ' ')
     .toLowerCase();
+
+  // Normalize compound prefixes: 'عبد العزيز' -> 'عبدالعزيز', 'ابو بكر' -> 'ابوبكر'
+  s = s.replace(/عبد\s+/g, 'عبد')
+       .replace(/ابو\s+/g, 'ابو')
+       .replace(/(نور|سيف|شمس|علاء|بهاء|ضياء|جمال|كمال|صلاح|جلال|حسام|عماد|سعد|تقي)\s+الدين/g, (m, p1) => p1 + 'الدين');
+
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -91,62 +98,150 @@ async function saveCloudSettings(settings) {
   return true;
 }
 
-/**
- * Fetches all employees from Firestore
- */
-async function getAllCloudEmployees() {
-  if (!isFirebaseReady || !db) return [];
+// In-memory cache for ultra-fast UI response
+let _cachedEmployees = null;
+let _cacheTime = 0;
+const CACHE_TTL_MS = 60000; // 1-minute TTL
 
+/**
+ * Invalidate employees cache whenever data changes
+ */
+function invalidateEmployeesCache() {
+  _cachedEmployees = null;
+  _cacheTime = 0;
+}
+
+/**
+ * Fetches all employees from Firestore with fast in-memory caching
+ */
+async function getAllCloudEmployees(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && _cachedEmployees && (now - _cacheTime < CACHE_TTL_MS)) {
+    return _cachedEmployees;
+  }
+
+  let employees = [];
+
+  if (isFirebaseReady && db) {
+    try {
+      const snapshot = await db.collection(COLLECTIONS.EMPLOYEES).get();
+      snapshot.forEach(doc => {
+        employees.push({ id: doc.id, ...doc.data() });
+      });
+    } catch (err) {
+      console.warn('Notice reading from Firestore:', err.message);
+    }
+  }
+
+  // Fallback to local server API if Firestore is empty or unavailable
+  if (employees.length === 0) {
+    try {
+      const res = await fetch('/api/employees');
+      if (res.ok) {
+        const localList = await res.json();
+        if (Array.isArray(localList) && localList.length > 0) {
+          employees = localList;
+          // Seed to Firestore in background
+          if (isFirebaseReady && db && employees.length > 0) {
+            seedEmployeesToFirestoreInBackground(employees);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Notice reading local employees API:', e.message);
+    }
+  }
+
+  if (employees.length > 0) {
+    _cachedEmployees = employees;
+    _cacheTime = now;
+  }
+
+  return employees;
+}
+
+// Background seeder to keep Firestore synced
+let _isSeedingFirestore = false;
+async function seedEmployeesToFirestoreInBackground(emps) {
+  if (_isSeedingFirestore || !isFirebaseReady || !db) return;
+  _isSeedingFirestore = true;
   try {
-    const snapshot = await db.collection(COLLECTIONS.EMPLOYEES).get();
-    const employees = [];
-    snapshot.forEach(doc => {
-      employees.push({ id: doc.id, ...doc.data() });
-    });
-    return employees;
-  } catch (err) {
-    console.error('Error getting employees from Firestore:', err);
-    return [];
+    const batchSize = 25;
+    for (let i = 0; i < Math.min(emps.length, 100); i += batchSize) {
+      const chunk = emps.slice(i, i + batchSize);
+      const batch = db.batch();
+      chunk.forEach(emp => {
+        const ref = db.collection(COLLECTIONS.EMPLOYEES).doc(emp.id);
+        batch.set(ref, emp, { merge: true });
+      });
+      await batch.commit();
+    }
+    console.log(`✅ تم مزامنة ${emps.length} موظفاً إلى السحابة بنجاح!`);
+  } catch (e) {
+    console.warn('Background seed notice:', e.message);
+  } finally {
+    _isSeedingFirestore = false;
   }
 }
 
 /**
- * Finds employee by strict Arabic full 3-part name (requires at least 3 words)
+ * Finds employee by Arabic name with resilient matching for compound names and 3+ parts
  */
 async function findCloudEmployeeByName(fullName) {
   const employees = await getAllCloudEmployees();
   if (!fullName) return null;
 
-  const searchWords = normalizeArabicText(fullName).split(/\s+/).filter(Boolean);
-  // Must provide at least 3 names (First, Father, Grandfather)
-  if (searchWords.length < 3) {
+  const rawNorm = String(fullName).trim()
+    .replace(/[أإآآ]/g, 'ا')
+    .replace(/[ة]/g, 'ه')
+    .replace(/[ى]/g, 'ي')
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+
+  const searchNorm = normalizeArabicText(fullName);
+  const searchWords = searchNorm.split(/\s+/).filter(Boolean);
+  const rawSearchWords = rawNorm.split(/\s+/).filter(Boolean);
+
+  if (searchWords.length < 2) {
     return null;
   }
 
-  const searchNorm = searchWords.join(' ');
-
   return employees.find(emp => {
-    const dbWords = normalizeArabicText(emp.fullName).split(/\s+/).filter(Boolean);
-    const dbPartsWords = normalizeArabicText(`${emp.firstName || ''} ${emp.secondName || ''} ${emp.thirdName || ''}`).split(/\s+/).filter(Boolean);
+    const dbRaw = String(emp.fullName || '').trim()
+      .replace(/[أإآآ]/g, 'ا')
+      .replace(/[ة]/g, 'ه')
+      .replace(/[ى]/g, 'ي')
+      .replace(/[\u064B-\u065F\u0670]/g, '')
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
 
-    // 1. Exact match with full name in DB
-    const dbNormFull = dbWords.join(' ');
-    if (dbNormFull === searchNorm) return true;
+    const dbNorm = normalizeArabicText(emp.fullName);
+    const dbWords = dbNorm.split(/\s+/).filter(Boolean);
+    const dbRawWords = dbRaw.split(/\s+/).filter(Boolean);
 
-    // 2. Exact match with 3 parts (first, second, third)
-    const dbNorm3Parts = dbPartsWords.slice(0, 3).join(' ');
-    const search3Parts = searchWords.slice(0, 3).join(' ');
-    if (dbNorm3Parts.length > 0 && dbNorm3Parts === search3Parts) return true;
+    // 1. Exact full name match (raw or normalized)
+    if (dbNorm === searchNorm || dbRaw === rawNorm || dbRaw === searchNorm || dbNorm === rawNorm) return true;
 
-    // 3. If DB has 4 or 5 names, and search has first 3 names matching the DB first 3 names
-    if (dbWords.length >= 3 && searchWords.length === 3) {
+    // 2. Exact match on first 3 parts
+    const db3 = dbWords.slice(0, 3).join(' ');
+    const s3 = searchWords.slice(0, 3).join(' ');
+    if (db3.length > 0 && s3.length > 0 && db3 === s3) return true;
+
+    // 3. Exact match with raw words (compound preservation)
+    const dbRaw3 = dbRawWords.slice(0, 3).join(' ');
+    const sRaw3 = rawSearchWords.slice(0, 3).join(' ');
+    if (dbRaw3.length > 0 && sRaw3.length > 0 && dbRaw3 === sRaw3) return true;
+
+    // 4. First 3 words exact matching
+    if (dbWords.length >= 3 && searchWords.length >= 3) {
       if (dbWords[0] === searchWords[0] && dbWords[1] === searchWords[1] && dbWords[2] === searchWords[2]) {
         return true;
       }
     }
 
-    // 4. If search has 4 words and DB starts with them
-    if (dbWords.length >= searchWords.length) {
+    // 5. If search has 3 or 4 words and DB starts with them
+    if (dbWords.length >= searchWords.length && searchWords.length >= 3) {
       const matchAll = searchWords.every((w, idx) => w === dbWords[idx]);
       if (matchAll) return true;
     }
@@ -157,35 +252,77 @@ async function findCloudEmployeeByName(fullName) {
 
 /**
  * Compresses any image (File, Blob, or base64) to high-quality lightweight JPEG data URL
+ * Guaranteed to stay within maxCharLength (~60KB Base64) to never exceed Firestore limits
  */
-async function compressImageToDataUrl(fileOrDataUrl, maxWidth = 1024, quality = 0.82) {
+async function compressImageToDataUrl(fileOrDataUrl, maxDim = 900, quality = 0.65, maxCharLength = 80000) {
   if (!fileOrDataUrl) return '';
   return new Promise((resolve) => {
+    let timer = setTimeout(() => {
+      resolve('');
+    }, 12000); // 12-second safety timeout
+
     const img = new Image();
     img.onload = () => {
-      let width = img.width;
-      let height = img.height;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
+      try {
+        let width = img.width;
+        let height = img.height;
+
+        // Constrain both dimensions proportionally
+        if (width > maxDim || height > maxDim) {
+          if (width >= height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(width, 1);
+        canvas.height = Math.max(height, 1);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        // Adaptive re-compression loop: ensure size never exceeds maxCharLength
+        let currentQuality = quality;
+        let passes = 0;
+        while (dataUrl.length > maxCharLength && passes < 3) {
+          currentQuality = Math.max(0.40, currentQuality - 0.12);
+          dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+          passes++;
+        }
+
+        clearTimeout(timer);
+        resolve(dataUrl);
+      } catch (err) {
+        clearTimeout(timer);
+        console.warn('Canvas compression error:', err);
+        resolve('');
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    img.onerror = () => resolve('');
+
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve('');
+    };
 
     if (typeof fileOrDataUrl === 'string') {
       img.src = fileOrDataUrl;
     } else if (fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File) {
       const reader = new FileReader();
       reader.onload = (e) => { img.src = e.target.result; };
-      reader.onerror = () => resolve('');
+      reader.onerror = () => {
+        clearTimeout(timer);
+        resolve('');
+      };
       reader.readAsDataURL(fileOrDataUrl);
     } else {
+      clearTimeout(timer);
       resolve('');
     }
   });
@@ -194,13 +331,55 @@ async function compressImageToDataUrl(fileOrDataUrl, maxWidth = 1024, quality = 
 /**
  * Uploads an image (File or base64 data URL) and returns the lightweight URL/data
  */
-async function uploadImageToStorage(fileOrDataUrl, pathName) {
+async function uploadImageToStorage(fileOrDataUrl, key = '') {
   if (!fileOrDataUrl) return '';
-  return await compressImageToDataUrl(fileOrDataUrl, 1024, 0.82);
+  // Personal photo: max 450px, quality 0.70, max size ~30KB
+  if (key === 'personalPhoto') {
+    return await compressImageToDataUrl(fileOrDataUrl, 450, 0.70, 45000);
+  }
+  // Document cards: max 900px, quality 0.65, max size ~60KB
+  return await compressImageToDataUrl(fileOrDataUrl, 900, 0.65, 80000);
+}
+
+/**
+ * Saves employee full attachment photos in subcollection: employees/{empId}/attachments/photos
+ */
+async function saveCloudEmployeeAttachments(empId, attachmentsMap) {
+  if (!isFirebaseReady || !db || !empId) return false;
+  try {
+    const docRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId).collection('attachments').doc('photos');
+    await docRef.set({
+      ...attachmentsMap,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (err) {
+    console.warn('Could not save attachments to subcollection:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Loads employee full attachment photos from subcollection: employees/{empId}/attachments/photos
+ */
+async function getCloudEmployeeAttachments(empId) {
+  if (!isFirebaseReady || !db || !empId) return {};
+  try {
+    const docRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId).collection('attachments').doc('photos');
+    const doc = await docRef.get();
+    if (doc.exists) {
+      return doc.data() || {};
+    }
+    return {};
+  } catch (err) {
+    console.warn('Could not read attachments subcollection:', err.message);
+    return {};
+  }
 }
 
 /**
  * Submits or updates completed employee profile in Firestore
+ * Guarantees document size stays well under Firestore 1,048,576 byte limit
  */
 async function submitCloudEmployee(empId, formData, attachments) {
   if (!isFirebaseReady || !db) throw new Error('السحابة غير متصلة');
@@ -209,7 +388,13 @@ async function submitCloudEmployee(empId, formData, attachments) {
   const doc = await empRef.get();
   const existing = doc.exists ? doc.data() : {};
 
-  // Upload images to Cloud Storage
+  // Check subcollection for any existing attachments
+  let existingSubAttachments = {};
+  try {
+    existingSubAttachments = await getCloudEmployeeAttachments(empId);
+  } catch (e) {}
+
+  // Upload and compress images in PARALLEL for ultra-fast processing
   const photoKeys = [
     'personalPhoto',
     'medicalPhoto',
@@ -221,22 +406,42 @@ async function submitCloudEmployee(empId, formData, attachments) {
     'residenceCardBack'
   ];
 
-  const uploadedUrls = {};
-  for (const key of photoKeys) {
+  const compressTasks = photoKeys.map(async (key) => {
     const item = attachments[key];
     if (item && (item.file || item.cameraData)) {
       const source = item.file || item.cameraData;
-      const cloudPath = `employees/${empId}/${key}_${Date.now()}.jpg`;
-      const url = await uploadImageToStorage(source, cloudPath);
-      if (url) uploadedUrls[key] = url;
-    } else if (existing[key]) {
-      uploadedUrls[key] = existing[key];
-    } else {
-      uploadedUrls[key] = '';
+      const url = await uploadImageToStorage(source, key);
+      if (url) return { key, url };
     }
-  }
+    // Retain existing if present
+    if (existing[key] && existing[key] !== 'subcollection') {
+      return { key, url: existing[key] };
+    }
+    if (existingSubAttachments[key]) {
+      return { key, url: existingSubAttachments[key] };
+    }
+    return { key, url: '' };
+  });
 
-  const updatedData = {
+  const compressedResults = await Promise.all(compressTasks);
+  const uploadedUrls = {};
+  compressedResults.forEach(r => {
+    uploadedUrls[r.key] = r.url;
+  });
+
+  // 1. Always save full photos into subcollection (independent 1MB storage)
+  await saveCloudEmployeeAttachments(empId, uploadedUrls);
+
+  // 2. Prepare main employee document payload with edit count & permissions
+  const isPreviouslyCompleted = !!existing.isCompleted;
+  const currentEditCount = Number(existing.editCount || 0);
+  const newEditCount = isPreviouslyCompleted ? (currentEditCount + 1) : 0;
+  const maxEdits = existing.maxEditsAllowed !== undefined ? Number(existing.maxEditsAllowed) : 3;
+  const canEdit = existing.canEdit !== undefined ? existing.canEdit : true;
+
+  const uploadedCount = photoKeys.filter(k => !!uploadedUrls[k]).length;
+
+  const formPayload = {
     ...existing,
     firstName: formData.firstName || existing.firstName || '',
     secondName: formData.secondName || existing.secondName || '',
@@ -259,13 +464,51 @@ async function submitCloudEmployee(empId, formData, attachments) {
     department: formData.department || existing.department || 'شعبة زراعة الشرقاط',
     position: (formData.position || existing.position || '').trim(),
     jobTitle: (formData.jobTitle || existing.jobTitle || '').trim(),
-    ...uploadedUrls,
+    personalPin: formData.personalPin ? String(formData.personalPin).trim() : (existing.personalPin || ''),
     isCompleted: true,
-    completedAt: new Date().toISOString()
+    completedAt: existing.completedAt || new Date().toISOString(),
+    lastUpdatedAt: new Date().toISOString(),
+    editCount: newEditCount,
+    maxEditsAllowed: maxEdits,
+    canEdit: canEdit,
+    photosUploadedCount: uploadedCount,
+    // Store personal photo directly for instant avatar display
+    personalPhoto: uploadedUrls.personalPhoto || existing.personalPhoto || '',
+    // Document card flags (boolean) so table/dossier knows which exist without loading heavy images
+    hasPhotos: {
+      personalPhoto: !!uploadedUrls.personalPhoto,
+      medicalPhoto: !!uploadedUrls.medicalPhoto,
+      empCardFront: !!uploadedUrls.empCardFront,
+      empCardBack: !!uploadedUrls.empCardBack,
+      idCardFront: !!uploadedUrls.idCardFront,
+      idCardBack: !!uploadedUrls.idCardBack,
+      residenceCardFront: !!uploadedUrls.residenceCardFront,
+      residenceCardBack: !!uploadedUrls.residenceCardBack
+    },
+    hasSubcollectionAttachments: true
   };
 
-  await empRef.set(updatedData, { merge: true });
-  return { id: empId, ...updatedData };
+  // Calculate size to guarantee staying under 768KB
+  let totalDocSize = JSON.stringify(formPayload).length;
+  for (const k of photoKeys) {
+    if (uploadedUrls[k]) totalDocSize += (k.length + uploadedUrls[k].length + 10);
+  }
+
+  const mainDocData = { ...formPayload };
+  if (totalDocSize < 768000) {
+    Object.assign(mainDocData, uploadedUrls);
+  } else {
+    mainDocData.personalPhoto = uploadedUrls.personalPhoto || '';
+    for (const k of photoKeys) {
+      if (k !== 'personalPhoto') {
+        mainDocData[k] = uploadedUrls[k] ? 'subcollection' : '';
+      }
+    }
+  }
+
+  await empRef.set(mainDocData, { merge: true });
+  invalidateEmployeesCache();
+  return { id: empId, ...mainDocData, ...uploadedUrls };
 }
 
 /**
@@ -403,6 +646,155 @@ async function resetEmployeePersonalPin(empId) {
   if (!isFirebaseReady || !db) throw new Error('السحابة غير متصلة');
   const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
   await empRef.set({ personalPin: '' }, { merge: true });
+  invalidateEmployeesCache();
   return true;
 }
+
+/**
+ * Updates a single document photo for an employee (Manager or Employee)
+ */
+async function updateSingleEmployeePhoto(empId, photoKey, fileOrDataUrl) {
+  if (!empId) throw new Error('معرف الموظف غير محدد');
+
+  let localUrl = '';
+  // 1. Dual-Save: Save to Local Server API first
+  try {
+    const fd = new FormData();
+    fd.append('employeeId', empId);
+    fd.append('photoKey', photoKey);
+    if (fileOrDataUrl instanceof File) {
+      fd.append('photoFile', fileOrDataUrl);
+    } else if (typeof fileOrDataUrl === 'string' && fileOrDataUrl.startsWith('data:')) {
+      fd.append('cameraData', fileOrDataUrl);
+    }
+    const res = await fetch('/api/employee/single-photo', { method: 'POST', body: fd });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.photoUrl) localUrl = data.photoUrl;
+    }
+  } catch (err) {
+    console.warn('Notice saving photo to local server:', err.message);
+  }
+
+  // 2. Compress and Save to Firestore
+  let compressedUrl = '';
+  try {
+    compressedUrl = await uploadImageToStorage(fileOrDataUrl, photoKey);
+  } catch (e) {}
+
+  const finalUrl = compressedUrl || localUrl;
+
+  if (isFirebaseReady && db) {
+    try {
+      const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
+      const doc = await empRef.get();
+      const existing = doc.exists ? (doc.data() || {}) : {};
+
+      if (compressedUrl) {
+        await saveCloudEmployeeAttachments(empId, { [photoKey]: compressedUrl });
+      }
+
+      const updatePayload = {
+        [photoKey]: finalUrl,
+        lastUpdatedAt: new Date().toISOString()
+      };
+
+      if (photoKey === 'personalPhoto') {
+        updatePayload.personalPhoto = finalUrl;
+      }
+
+      const existingHasPhotos = existing.hasPhotos || {};
+      existingHasPhotos[photoKey] = !!finalUrl;
+      updatePayload.hasPhotos = existingHasPhotos;
+
+      await empRef.set(updatePayload, { merge: true });
+    } catch (err) {
+      console.warn('Notice saving photo to Firestore:', err.message);
+    }
+  }
+
+  if (typeof invalidateEmployeesCache === 'function') invalidateEmployeesCache();
+
+  return { success: true, url: finalUrl };
+}
+
+/**
+ * Deletes / removes a single document photo for an employee (Manager only)
+ */
+async function deleteSingleEmployeePhoto(empId, photoKey) {
+  if (!empId) throw new Error('معرف الموظف غير محدد');
+
+  // 1. Clear in local server
+  try {
+    await fetch(`/api/manager/employee/${empId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [photoKey]: '' })
+    });
+  } catch (err) {
+    console.warn('Notice deleting photo on local server:', err.message);
+  }
+
+  // 2. Clear in Firestore
+  if (isFirebaseReady && db) {
+    try {
+      const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
+      const doc = await empRef.get();
+      const existing = doc.exists ? (doc.data() || {}) : {};
+
+      await saveCloudEmployeeAttachments(empId, { [photoKey]: '' });
+
+      const updatePayload = {
+        [photoKey]: '',
+        lastUpdatedAt: new Date().toISOString()
+      };
+
+      if (photoKey === 'personalPhoto') {
+        updatePayload.personalPhoto = '';
+      }
+
+      const existingHasPhotos = existing.hasPhotos || {};
+      existingHasPhotos[photoKey] = false;
+      updatePayload.hasPhotos = existingHasPhotos;
+
+      await empRef.set(updatePayload, { merge: true });
+    } catch (err) {
+      console.warn('Notice deleting photo on Firestore:', err.message);
+    }
+  }
+
+  if (typeof invalidateEmployeesCache === 'function') invalidateEmployeesCache();
+  return true;
+}
+
+/**
+ * Toggles edit permission for an employee (Manager control)
+ */
+async function setEmployeeEditPermission(empId, canEdit) {
+  if (!isFirebaseReady || !db || !empId) throw new Error('السحابة غير متصلة');
+  const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
+  await empRef.set({ canEdit: !!canEdit, lastUpdatedAt: new Date().toISOString() }, { merge: true });
+  invalidateEmployeesCache();
+  return true;
+}
+
+/**
+ * Grants additional edit attempts to an employee (Manager control)
+ */
+async function grantEmployeeAdditionalEdits(empId, additionalCount = 3) {
+  if (!isFirebaseReady || !db || !empId) throw new Error('السحابة غير متصلة');
+  const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
+  const doc = await empRef.get();
+  const data = doc.data() || {};
+  const currentMax = Number(data.maxEditsAllowed || 3);
+
+  await empRef.set({
+    maxEditsAllowed: currentMax + additionalCount,
+    canEdit: true,
+    lastUpdatedAt: new Date().toISOString()
+  }, { merge: true });
+  invalidateEmployeesCache();
+  return true;
+}
+
 

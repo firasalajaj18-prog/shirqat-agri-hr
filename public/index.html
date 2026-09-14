@@ -126,33 +126,143 @@
       </div>
     </section>
 
-    <!-- ==================== VIEW 2: EMPLOYEE COMPLETED VIEW ==================== -->
+    <!-- ==================== VIEW 2: EMPLOYEE PORTAL / COMPLETED VIEW ==================== -->
     <section id="employeeCompletedView" class="view-section" style="display: none;">
-      <div class="completed-screen-card">
-        <div class="completed-icon-wrap">
-          <i class="fa-solid fa-circle-check"></i>
-        </div>
-        <h3 class="completed-screen-title" id="completedEmpName">أهلاً بك، الموظف الكريم</h3>
-        <div class="completed-screen-msg">
-          تم إكمال وتثبيت كافة بياناتك ومرفقاتك بنجاح في قاعدة بيانات شعبة زراعة الشرقاط.<br>
-          إذا كان هناك رغبة في تعديل أي بيان قم بمراجعة الإدارة أو التواصل مع الدعم الفني: <br>
-          <strong style="font-size: 1.35rem; color: var(--sage-900); display: inline-block; margin-top: 0.5rem; direction: ltr;">07706656968</strong>
+      <div class="employee-portal-wrapper">
+        
+        <!-- Portal Welcome Header -->
+        <div class="portal-header-card">
+          <div class="portal-user-meta">
+            <div class="portal-avatar-box" id="portalUserAvatar">
+              <i class="fa-solid fa-user"></i>
+            </div>
+            <div>
+              <div class="portal-badge-row">
+                <span class="status-badge completed"><i class="fa-solid fa-circle-check"></i> حساب موظف مسجل</span>
+                <span class="status-badge" id="portalJobBadge" style="background: var(--sage-100); color: var(--sage-800); border: 1px solid var(--sage-300);">ملاك</span>
+                <span class="status-badge" style="background: #ffffff; color: var(--sage-800); border: 1px solid var(--sage-200);"><i class="fa-solid fa-building"></i> شعبة زراعة الشرقاط</span>
+              </div>
+              <h2 class="portal-emp-title" id="completedEmpName">أهلاً بك، الموظف الكريم</h2>
+              <p class="portal-emp-subtitle" id="portalEmpJobTitle">العنوان الوظيفي: —</p>
+            </div>
+          </div>
+          <div class="portal-header-quick-actions">
+            <button class="btn btn-sm btn-secondary" onclick="openChangeMyPinModal()" title="تغيير الرمز السري">
+              <i class="fa-solid fa-key"></i> تغيير رمزي السري
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="logoutEmployee()" title="تسجيل الخروج">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i> خروج
+            </button>
+          </div>
         </div>
 
-        <div class="completed-actions">
-          <a href="tel:07706656968" class="btn-contact-call">
-            <i class="fa-solid fa-phone-volume"></i>
-            اتصال هاتفي مباشر
-          </a>
-          <a href="https://wa.me/9647706656968" target="_blank" class="btn-contact-whatsapp">
-            <i class="fa-brands fa-whatsapp"></i>
-            مراسلة عبر واتساب
-          </a>
-          <button class="btn btn-secondary" onclick="showView('homeView')">
-            <i class="fa-solid fa-house"></i>
-            العودة للرئيسية
+        <!-- Prominent Call-to-Action Edit Card -->
+        <div class="portal-cta-edit-card">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem;">
+              <span class="status-badge" style="background: #10b981; color: #ffffff; font-weight: 800;"><i class="fa-solid fa-circle-check"></i> استمارتك مسجلة</span>
+              <span style="font-size: 0.85rem; color: #a7f3d0; font-weight: 600;">يمكنك مراجعة وتعديل بياناتك بأي وقت</span>
+            </div>
+            <h3 style="font-size: 1.3rem; font-weight: 800; margin: 0 0 0.35rem 0; color: #ffffff;">هل ترغب بتعديل أي بيان أو إكمال المستمسكات الناقصة؟</h3>
+            <p style="margin: 0; font-size: 0.92rem; color: #e2e8f0; line-height: 1.5;">اضغط على الزر لفتح استمارتك وتعديل معلوماتك الشخصية أو إرفاق واستبدال صور المستمسكات الثبوتية.</p>
+          </div>
+          <button type="button" class="btn portal-cta-btn-glow" onclick="openEmployeeEditMode()" style="padding: 0.95rem 2rem; font-size: 1.1rem; font-weight: 800; border-radius: var(--radius-md); white-space: nowrap; cursor: pointer;">
+            <i class="fa-solid fa-pen-to-square"></i> تعديل الاستمارة وإكمال النواقص
           </button>
         </div>
+
+        <!-- Portal Stats & Status Cards -->
+        <div class="portal-metrics-grid">
+          <!-- Metric 1: Documents Upload Status -->
+          <div class="portal-metric-card" id="portalDocMetricCard">
+            <div class="metric-icon-wrap" style="background: rgba(65, 103, 78, 0.12); color: var(--sage-700);">
+              <i class="fa-solid fa-images"></i>
+            </div>
+            <div class="metric-info">
+              <span class="metric-label">المستمسكات والوثائق المرفوعة</span>
+              <div class="metric-val-wrap">
+                <span class="metric-val" id="portalDocCount">0 / 8</span>
+                <span class="metric-sub" id="portalDocStatusText">جاري الفحص...</span>
+              </div>
+              <div class="portal-progress-bar">
+                <div class="portal-progress-fill" id="portalDocProgressFill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Metric 2: Edit Permission Status -->
+          <div class="portal-metric-card" id="portalEditMetricCard">
+            <div class="metric-icon-wrap" id="portalEditIconWrap" style="background: rgba(16, 185, 129, 0.12); color: var(--success);">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </div>
+            <div class="metric-info">
+              <span class="metric-label">صلاحية تعديل البيانات</span>
+              <div class="metric-val-wrap">
+                <span class="metric-val" id="portalEditStatusVal" style="font-size: 1.15rem;">مسموح بالتعديل</span>
+                <span class="metric-sub" id="portalEditRemainingText">متبقي 3 محاولات</span>
+              </div>
+              <span class="metric-note" id="portalEditNote">يمكنك تحديث بياناتك واستكمال الصور بأي وقت</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Missing Documents Alert (if any documents < 8) -->
+        <div id="portalMissingDocsAlert" class="custom-alert alert-warning" style="display: none; margin-bottom: 1.5rem;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.4rem;"></i>
+          <div style="flex: 1;">
+            <strong style="display: block; margin-bottom: 0.25rem;">تنبيه: لديك مستمسكات غير مكتملة في إضبارتك الرسمية!</strong>
+            <span id="portalMissingDocsListText" style="font-size: 0.9rem; line-height: 1.5; display: block;">يرجى فتح الاستمارة أدناه ورفع الوثائق الناقصة لاعتماد إضبارتك لدى الشعبة.</span>
+          </div>
+        </div>
+
+        <!-- Main Action Buttons -->
+        <div class="portal-actions-container">
+          <!-- Allowed Edit Button -->
+          <button type="button" class="btn btn-primary portal-main-btn" id="btnOpenEmployeeEditForm" onclick="openEmployeeEditMode()">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <div style="text-align: right;">
+              <span style="font-weight: 800; font-size: 1.05rem; display: block;">مراجعة وتعديل بياناتي ومستمسكاتي</span>
+              <span style="font-size: 0.82rem; opacity: 0.9; font-weight: 500;" id="btnOpenEditSubText">تحديث البيانات الشخصية وإضافة أو تغيير الصور</span>
+            </div>
+          </button>
+
+          <!-- Locked Edit Notice & Request Button -->
+          <div id="portalLockedNoticeBox" style="display: none; width: 100%;">
+            <div class="custom-alert alert-danger" style="margin-bottom: 1rem;">
+              <i class="fa-solid fa-lock" style="font-size: 1.35rem;"></i>
+              <div>
+                <strong style="display: block; margin-bottom: 0.25rem;">الاستمارة مقفلة من قبل الإدارة</strong>
+                <span style="font-size: 0.88rem; line-height: 1.5; display: block;">لقد استنفدت محاولات التعديل المسموحة أو قامت إدارة شعبة زراعة الشرقاط بقفل الاستمارة بعد تدقيقها. إذا كنت بحاجة لتعديل طارئ، يرجى الضغط أدناه لطلب فتح الصلاحية من الإدارة:</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <a id="btnRequestEditWhatsApp" href="https://wa.me/9647706656968" target="_blank" class="btn btn-success" style="flex: 1; min-width: 200px;">
+                <i class="fa-brands fa-whatsapp"></i> طلب فتح التعديل عبر واتساب
+              </a>
+              <a href="tel:07706656968" class="btn btn-secondary" style="flex: 1; min-width: 200px;">
+                <i class="fa-solid fa-phone-volume"></i> اتصال بالدعم الفني (07706656968)
+              </a>
+            </div>
+          </div>
+
+          <!-- View My Saved Dossier Button -->
+          <button type="button" class="btn btn-outline-success" onclick="openMyEmployeeDossier()" style="padding: 0.85rem 1.5rem; font-weight: 700; font-size: 0.95rem;">
+            <i class="fa-solid fa-id-card"></i> معاينة إضبارتي ومستمسكاتي المحفوظة
+          </button>
+        </div>
+
+        <!-- Help & Contact Footer Bar -->
+        <div class="portal-help-bar">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <i class="fa-solid fa-headset" style="color: var(--sage-600); font-size: 1.25rem;"></i>
+            <span style="font-weight: 700; font-size: 0.9rem; color: var(--sage-900);">مركز الدعم الفني لشعبة زراعة الشرقاط: <strong dir="ltr" style="font-family: monospace;">07706656968</strong></span>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <a href="tel:07706656968" class="btn btn-sm btn-secondary"><i class="fa-solid fa-phone"></i> اتصال</a>
+            <a href="https://wa.me/9647706656968" target="_blank" class="btn btn-sm btn-outline-success"><i class="fa-brands fa-whatsapp"></i> واتساب</a>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -182,6 +292,25 @@
 
         <form id="employeeDataForm">
           <input type="hidden" id="formEmpId" name="employeeId">
+
+          <!-- Security PIN Field: Employee Secret Code -->
+          <div class="form-group" style="background: #f0fdf4; border: 2px solid #86efac; border-radius: var(--radius-md); padding: 1.15rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+              <label class="form-label" style="color: #166534; font-weight: 800; margin-bottom: 0; font-size: 1.05rem;">
+                <i class="fa-solid fa-key" style="color: #15803d;"></i> <span class="required-star">*</span>الرمز السري الخاص بك (PIN) - للدخول وتعديل استمارتك لاحقاً
+              </label>
+              <span class="status-badge" style="background: #dcfce7; color: #166534; font-weight: 700; border: 1px solid #86efac;">مهم لحماية بياناتك</span>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center; max-width: 450px;">
+              <input type="text" id="formPersonalPin" name="personalPin" class="form-input" placeholder="أدخل 4 إلى 6 أرقام (مثال: 5821)" maxlength="6" pattern="[0-9]{4,6}" inputmode="numeric" required style="font-size: 1.25rem; font-weight: 800; letter-spacing: 3px; text-align: center;">
+              <button type="button" class="btn btn-secondary" onclick="generateFormPin()" title="توليد رمز عشوائي">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> توليد رمز
+              </button>
+            </div>
+            <span class="input-helper" style="color: #15803d; font-weight: 600; margin-top: 0.5rem; display: block;">
+              <i class="fa-solid fa-circle-info"></i> احفظ هذا الرمز جيداً: ستحتاجه دائماً للدخول إلى استمارتك ومراجعة بياناتك وإكمال المستمسكات الناقصة في أي وقت.
+            </span>
+          </div>
 
           <!-- Section 1: الأسماء -->
           <div class="section-header-title">
@@ -655,13 +784,30 @@
         <div class="modal-body">
           <div id="managerLoginError" class="custom-alert alert-danger" style="display: none;"></div>
 
+          <!-- Credentials Helper Banner -->
+          <div class="custom-alert alert-info" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1.15rem; background: #eff6ff; border: 1.5px solid #93c5fd; color: #1e40af; border-radius: var(--radius-md); padding: 0.75rem 1rem;">
+            <div>
+              <i class="fa-solid fa-circle-info" style="color: #2563eb; margin-left: 0.35rem;"></i>
+              <strong>بيانات الدخول الرسمية:</strong><br>
+              <span style="font-size: 0.88rem;">اسم المستخدم: <code style="background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: 800;">admin</code> | كلمة المرور: <code style="background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: 800;">admin2024</code></span>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" onclick="quickFillManagerLogin()" style="font-size: 0.8rem; padding: 0.35rem 0.75rem; white-space: nowrap;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> تعبئة تلقائية
+            </button>
+          </div>
+
           <div class="form-group">
             <label class="form-label"><i class="fa-solid fa-user"></i> اسم المستخدم (Username)</label>
-            <input type="text" id="managerUsername" class="form-input" placeholder="اسم المستخدم الخاص بالمدير" autocomplete="new-password" required>
+            <input type="text" id="managerUsername" class="form-input" placeholder="اسم المستخدم الخاص بالمدير" value="admin" autocomplete="new-password" required>
           </div>
           <div class="form-group">
             <label class="form-label"><i class="fa-solid fa-key"></i> كلمة المرور (Password)</label>
-            <input type="password" id="managerPassword" class="form-input" placeholder="كلمة المرور" autocomplete="new-password" required>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="managerPassword" class="form-input" placeholder="كلمة المرور (admin2024)" autocomplete="new-password" required style="padding-left: 2.75rem;">
+              <button type="button" onclick="togglePasswordVisibility('managerPassword', this)" style="position: absolute; left: 10px; background: none; border: none; color: var(--sage-700); cursor: pointer; font-size: 1.1rem; padding: 0.25rem;" title="إظهار / إخفاء">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -674,7 +820,7 @@
 
   <!-- ==================== MODAL: EMPLOYEE VERIFICATION ==================== -->
   <div class="modal-overlay" id="employeeVerifyModal">
-    <div class="modal-window">
+    <div class="modal-window" style="max-width: 540px;">
       <div class="modal-header">
         <div class="modal-title">
           <i class="fa-solid fa-id-card" style="color: var(--sage-700);"></i>
@@ -688,16 +834,45 @@
         <div class="modal-body">
           <div id="employeeVerifyError" class="custom-alert alert-danger" style="display: none;"></div>
 
-          <div class="form-group">
-            <label class="form-label"><span class="required-star">*</span>الاسم الثلاثي الكامل للموظف</label>
-            <input type="text" id="employeeCheckName" class="form-input" placeholder="اكتب اسمك الثلاثي كما هو معتمد في الشعبة" required autofocus oninput="checkEmployeePinStatus()">
-            <span class="input-helper">مثال: أحمد علي حسين (يجب كتابة الاسم الثلاثي: الأول واسم الأب واسم الجد)</span>
+          <!-- Quick Select from Employees List -->
+          <div class="form-group" style="margin-bottom: 1.15rem; background: var(--sage-50); padding: 0.85rem; border-radius: var(--radius-md); border: 1.5px solid var(--sage-300);">
+            <label class="form-label" style="font-weight: 800; color: var(--sage-900); margin-bottom: 0.35rem;">
+              <i class="fa-solid fa-users" style="color: var(--sage-700);"></i> طريقة سهلة: اختر اسمك مباشرة من قائمة الشعبة
+            </label>
+            <select id="employeeCheckSelect" class="form-select" onchange="handleSelectEmployeeQuick(this.value)">
+              <option value="">-- اضغط هنا لاختيار اسمك من قائمة الموظفين --</option>
+            </select>
           </div>
 
+          <!-- Type or Search Name with Live Autocomplete -->
           <div class="form-group">
-            <label class="form-label" id="employeeCodeLabel"><span class="required-star">*</span>الرمز السري / رمز الدخول</label>
-            <input type="password" id="employeeCheckCode" class="form-input" placeholder="أدخل الرمز السري الشخصي أو رمز الدخول العام" required>
-            <span class="input-helper" id="employeeCodeHelper">الرمز السري المعتمد للمتابعة</span>
+            <label class="form-label"><span class="required-star">*</span>أو اكتب الاسم الثلاثي / الرباعي للموظف</label>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="employeeCheckName" class="form-input" placeholder="اكتب اسمك الثلاثي (مثال: عيدان فايز أو وفاء عبدالعزيز)" required autofocus oninput="handleEmployeeNameInput(this.value)">
+              <div id="employeeNameSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+            </div>
+            <span class="input-helper">تظهر اقتراحات الأسماء تلقائياً أثناء كتابتك للأحرف.</span>
+          </div>
+
+          <!-- Security PIN -->
+          <div class="form-group">
+            <label class="form-label" id="employeeCodeLabel"><span class="required-star">*</span>رمز الدخول أو الرمز السري الخاص بك (PIN)</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="employeeCheckCode" class="form-input" placeholder="أدخل رمز الدخول (1234) أو رمزك السري" required style="padding-left: 2.75rem; font-weight: 700; letter-spacing: 2px;">
+              <button type="button" onclick="togglePasswordVisibility('employeeCheckCode', this)" style="position: absolute; left: 10px; background: none; border: none; color: var(--sage-700); cursor: pointer; font-size: 1.1rem; padding: 0.25rem;" title="إظهار / إخفاء الرمز">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+            <span class="input-helper" id="employeeCodeHelper" style="color: var(--sage-800); font-weight: 600; margin-top: 0.35rem; display: block;">
+              <i class="fa-solid fa-circle-check" style="color: #10b981;"></i> رمز الدخول العام المعتمد: <strong>1234</strong> أو الرمز السري الشخصي الذي عيّنته مسبقاً.
+            </span>
+          </div>
+
+          <!-- 1-Click New Employee Registration -->
+          <div style="margin-top: 1.15rem; padding-top: 0.85rem; border-top: 1px dashed var(--sage-300); text-align: center;">
+            <button type="button" class="btn btn-outline-success" onclick="startNewEmployeeDirectly()" style="width: 100%; font-weight: 800; padding: 0.65rem 1rem;">
+              <i class="fa-solid fa-user-plus"></i> لست مسجلاً في القائمة؟ إنشاء استمارة جديدة والدخول فوراً
+            </button>
           </div>
         </div>
         <div class="modal-footer">
@@ -798,7 +973,7 @@
       <div class="modal-header">
         <div class="modal-title">
           <i class="fa-solid fa-file-excel" style="color: #107c41;"></i>
-          <span>استيراد أسماء الموظفين من ملف Excel (.xlsx)</span>
+          <span>استيراد أسماء الموظفين من ملف Excel أو Word</span>
         </div>
         <button class="modal-close-btn" onclick="closeModal('uploadExcelModal')">
           <i class="fa-solid fa-xmark"></i>
@@ -808,12 +983,12 @@
         <div class="modal-body">
           <div class="custom-alert alert-info">
             <i class="fa-solid fa-info-circle"></i>
-            <span>قم باختيار ملف إكسل (.xlsx) يحتوي على أسماء موظفي شعبة زراعة الشرقاط. يقوم النظام تلقائياً بقراءة الأسماء الثلاثية أو الرباعية وإضافتها للنظام دون تكرار.</span>
+            <span>قم باختيار ملف إكسل (.xlsx) أو مستند وورد (.docx) يحتوي على أسماء موظفي شعبة زراعة الشرقاط. يقوم النظام تلقائياً بقراءة الأسماء وإضافتها للنظام دون تكرار.</span>
           </div>
 
           <div class="form-group" style="margin-bottom: 1.25rem;">
-            <label class="form-label"><span class="required-star">*</span>اختر ملف Excel (.xlsx أو .xls)</label>
-            <input type="file" id="excelFileInput" class="form-input" accept=".xlsx, .xls" required>
+            <label class="form-label"><span class="required-star">*</span>اختر ملف (Excel .xlsx أو Word .docx)</label>
+            <input type="file" id="excelFileInput" class="form-input" accept=".xlsx, .xls, .docx" required>
           </div>
 
           <!-- Download Sample Template Box -->
@@ -873,13 +1048,13 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL: ADD / EDIT EMPLOYEE ==================== -->
+  <!-- ==================== MODAL: COMPREHENSIVE MANAGER EMPLOYEE EDIT ==================== -->
   <div class="modal-overlay" id="employeeEditModal">
-    <div class="modal-window">
+    <div class="modal-window manager-edit-modal-window">
       <div class="modal-header">
         <div class="modal-title">
-          <i class="fa-solid fa-user-pen"></i>
-          <span id="employeeEditModalTitle">إضافة موظف جديد</span>
+          <i class="fa-solid fa-user-pen" style="color: var(--sage-700);"></i>
+          <span id="employeeEditModalTitle">تعديل كافة بيانات ومستمسكات الموظف</span>
         </div>
         <button class="modal-close-btn" onclick="closeModal('employeeEditModal')">
           <i class="fa-solid fa-xmark"></i>
@@ -887,40 +1062,367 @@
       </div>
       <form id="employeeEditForm" onsubmit="handleSaveEmployeeManual(event)">
         <input type="hidden" id="editEmpId">
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label"><span class="required-star">*</span>الاسم الكامل (الثلاثي أو الرباعي واللقب)</label>
-            <input type="text" id="editFullName" class="form-input" placeholder="مثال: أحمد علي حسين محمود الجبوري" required>
+        <div class="modal-body" style="overflow-y: auto; max-height: calc(88vh - 130px); padding: 1.25rem;">
+          
+          <!-- Alert / Info Banner -->
+          <div class="custom-alert alert-info" style="margin-bottom: 1.25rem;">
+            <i class="fa-solid fa-circle-info" style="font-size: 1.25rem;"></i>
+            <span>نافذة المدير الشاملة: يمكنك هنا تعديل أو تصحيح كافة الحقول والبيانات الشخصية والوظيفية، والرمز السري، ورفع أو استبدال أو حذف أي صورة من المستمسكات الـ 8 المرفقة.</span>
           </div>
-          <div class="form-group">
-            <label class="form-label">الصفة الوظيفية</label>
-            <select id="editJobStatus" class="form-select">
-              <option value="ملاك">ملاك دائم</option>
-              <option value="عقد">عقد وزاري</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">العنوان الوظيفي</label>
-            <input type="text" id="editJobTitle" class="form-input" placeholder="مثال: مهندس زراعي">
-          </div>
-          <div class="form-group">
-            <label class="form-label">الدائرة / الشعبة</label>
-            <input type="text" id="editDepartment" class="form-input" value="شعبة زراعة الشرقاط">
-          </div>
-          <div class="form-group">
-            <label class="form-label"><i class="fa-solid fa-key"></i> الرمز السري الشخصي للموظف (PIN)</label>
-            <div style="display: flex; gap: 0.5rem;">
-              <input type="text" id="editPersonalPin" class="form-input" placeholder="أدخل 4-6 أرقام أو اتركه فارغاً" maxlength="6">
-              <button type="button" class="btn btn-secondary" onclick="document.getElementById('editPersonalPin').value = ''" title="مسح وتصفير الرمز">
-                <i class="fa-solid fa-rotate-left"></i> تصفير
-              </button>
+
+          <!-- SECTION 1: PERSONAL & JOB FIELDS -->
+          <div class="manager-edit-section">
+            <div class="manager-edit-section-header">
+              <h4><i class="fa-solid fa-id-card-clip" style="color: var(--sage-700);"></i> أولاً: البيانات الشخصية والوظيفية للموظف</h4>
+              <span class="status-badge" style="background: var(--sage-100); color: var(--sage-900); border: 1px solid var(--sage-300);">البيانات الأساسية</span>
             </div>
-            <span class="input-helper">يمكن للمدير تعديل أو تصفير الرمز السري للموظف إذا نسيه</span>
+
+            <!-- Quad Names + Surname -->
+            <div class="form-grid-4" style="margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label"><span class="required-star">*</span>الاسم الأول</label>
+                <input type="text" id="editFirstName" class="form-input" placeholder="الاسم الأول" required oninput="syncEditFullName()">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><span class="required-star">*</span>اسم الأب</label>
+                <input type="text" id="editSecondName" class="form-input" placeholder="اسم الأب" required oninput="syncEditFullName()">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><span class="required-star">*</span>اسم الجد</label>
+                <input type="text" id="editThirdName" class="form-input" placeholder="اسم الجد" required oninput="syncEditFullName()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">اسم والد الجد (الرابع)</label>
+                <input type="text" id="editFourthName" class="form-input" placeholder="الاسم الرابع" oninput="syncEditFullName()">
+              </div>
+            </div>
+
+            <div class="form-grid-3" style="margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label">اللقب</label>
+                <input type="text" id="editSurname" class="form-input" placeholder="مثال: الجبوري" oninput="syncEditFullName()">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><span class="required-star">*</span>الاسم الكامل الموحد (يُحدث تلقائياً)</label>
+                <input type="text" id="editFullName" class="form-input" placeholder="الاسم الكامل" required style="font-weight: 700; background: #f8fafc;">
+              </div>
+              <div class="form-group">
+                <label class="form-label">اسم الأم الثلاثي</label>
+                <input type="text" id="editMotherName" class="form-input" placeholder="اسم الأم الثلاثي">
+              </div>
+            </div>
+
+            <div class="form-grid-3" style="margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label">رقم البطاقة الوطنية الموحدة</label>
+                <input type="text" id="editUnifiedId" class="form-input" placeholder="12 رقماً" maxlength="12">
+              </div>
+              <div class="form-group">
+                <label class="form-label">رقم العائلة (التموينية / السجل)</label>
+                <input type="text" id="editFamilyNumber" class="form-input" placeholder="رقم العائلة">
+              </div>
+              <div class="form-group">
+                <label class="form-label">فصيلة الدم</label>
+                <select id="editBloodType" class="form-select">
+                  <option value="">-- غير محدد --</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-grid-4" style="margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label">رقم الهاتف</label>
+                <input type="tel" id="editPhone" class="form-input" placeholder="07XXXXXXXXX" maxlength="11">
+              </div>
+              <div class="form-group">
+                <label class="form-label"><span class="required-star">*</span>الصفة الوظيفية</label>
+                <select id="editJobStatus" class="form-select">
+                  <option value="ملاك">ملاك دائم</option>
+                  <option value="عقد">عقد وزاري</option>
+                  <option value="أجر يومي">أجر يومي</option>
+                  <option value="متقاعد">متقاعد</option>
+                  <option value="تنسيب">تنسيب</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">الدائرة / الشعبة</label>
+                <input type="text" id="editDepartment" class="form-input" value="شعبة زراعة الشرقاط">
+              </div>
+              <div class="form-group">
+                <label class="form-label">العنوان الوظيفي</label>
+                <input type="text" id="editJobTitle" class="form-input" placeholder="مثال: مهندس زراعي">
+              </div>
+            </div>
+
+            <div class="form-grid-3" style="background: #f8fafc; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--sage-200);">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label"><i class="fa-solid fa-key" style="color: var(--sage-700);"></i> الرمز السري الشخصي (PIN)</label>
+                <div style="display: flex; gap: 0.35rem;">
+                  <input type="text" id="editPersonalPin" class="form-input" placeholder="4-6 أرقام" maxlength="6" style="font-weight: 800; letter-spacing: 2px;">
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="generateManagerPin()" title="توليد رمز عشوائي">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="document.getElementById('editPersonalPin').value = ''" title="تصفير الرمز">
+                    <i class="fa-solid fa-rotate-left"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label"><i class="fa-solid fa-user-lock"></i> صلاحية تعديل الموظف للاستمارة</label>
+                <select id="editCanEdit" class="form-select">
+                  <option value="true">مسموح بالتعديل (مفتوح)</option>
+                  <option value="false">مقفل من الإدارة</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label"><i class="fa-solid fa-repeat"></i> الحد الأقصى لمحاولات التعديل</label>
+                <input type="number" id="editMaxEditsAllowed" class="form-input" value="99" min="1" max="999">
+              </div>
+            </div>
           </div>
+
+          <!-- SECTION 2: ALL 8 ATTACHMENTS & PHOTOS -->
+          <div class="manager-edit-section">
+            <div class="manager-edit-section-header">
+              <h4><i class="fa-solid fa-images" style="color: var(--sage-700);"></i> ثانياً: مستمسكات ووثائق الموظف الثبوتية (كافة الصور الـ 8)</h4>
+              <span class="status-badge" id="managerEditDocsBadge" style="background: var(--sage-100); color: var(--sage-900);">8 مستمسكات</span>
+            </div>
+
+            <div class="manager-edit-photos-grid">
+              
+              <!-- 1. personalPhoto -->
+              <div class="manager-photo-item" id="mgrCard_personalPhoto">
+                <span class="manager-photo-title">الصورة الشخصية الحديثة</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_personalPhoto">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('personalPhoto')">
+                  <img id="mgrPreview_personalPhoto" src="" style="display: none;" alt="الصورة الشخصية">
+                  <div class="empty-placeholder" id="mgrEmpty_personalPhoto">
+                    <i class="fa-solid fa-user" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_personalPhoto" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'personalPhoto')">
+                <input type="hidden" id="mgrCamera_personalPhoto">
+                <input type="hidden" id="mgrDeleted_personalPhoto" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_personalPhoto').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('personalPhoto')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('personalPhoto')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+              <!-- 2. medicalPhoto -->
+              <div class="manager-photo-item" id="mgrCard_medicalPhoto">
+                <span class="manager-photo-title">تقرير الفحص الطبي</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_medicalPhoto">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('medicalPhoto')">
+                  <img id="mgrPreview_medicalPhoto" src="" style="display: none;" alt="تقرير الفحص الطبي">
+                  <div class="empty-placeholder" id="mgrEmpty_medicalPhoto">
+                    <i class="fa-solid fa-notes-medical" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_medicalPhoto" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'medicalPhoto')">
+                <input type="hidden" id="mgrCamera_medicalPhoto">
+                <input type="hidden" id="mgrDeleted_medicalPhoto" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_medicalPhoto').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('medicalPhoto')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('medicalPhoto')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+              <!-- 3. empCardFront -->
+              <div class="manager-photo-item" id="mgrCard_empCardFront">
+                <span class="manager-photo-title">هوية الدائرة (الوجه الأمامي)</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_empCardFront">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('empCardFront')">
+                  <img id="mgrPreview_empCardFront" src="" style="display: none;" alt="هوية الدائرة - أمامي">
+                  <div class="empty-placeholder" id="mgrEmpty_empCardFront">
+                    <i class="fa-solid fa-id-badge" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_empCardFront" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'empCardFront')">
+                <input type="hidden" id="mgrCamera_empCardFront">
+                <input type="hidden" id="mgrDeleted_empCardFront" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_empCardFront').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('empCardFront')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('empCardFront')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+              <!-- 4. empCardBack -->
+              <div class="manager-photo-item" id="mgrCard_empCardBack">
+                <span class="manager-photo-title">هوية الدائرة (الوجه الخلفي)</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_empCardBack">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('empCardBack')">
+                  <img id="mgrPreview_empCardBack" src="" style="display: none;" alt="هوية الدائرة - خلفي">
+                  <div class="empty-placeholder" id="mgrEmpty_empCardBack">
+                    <i class="fa-solid fa-id-badge" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_empCardBack" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'empCardBack')">
+                <input type="hidden" id="mgrCamera_empCardBack">
+                <input type="hidden" id="mgrDeleted_empCardBack" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_empCardBack').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('empCardBack')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('empCardBack')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+              <!-- 5. idCardFront -->
+              <div class="manager-photo-item" id="mgrCard_idCardFront">
+                <span class="manager-photo-title">البطاقة الموحدة (الوجه الأمامي)</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_idCardFront">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('idCardFront')">
+                  <img id="mgrPreview_idCardFront" src="" style="display: none;" alt="البطاقة الموحدة - أمامي">
+                  <div class="empty-placeholder" id="mgrEmpty_idCardFront">
+                    <i class="fa-solid fa-address-card" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_idCardFront" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'idCardFront')">
+                <input type="hidden" id="mgrCamera_idCardFront">
+                <input type="hidden" id="mgrDeleted_idCardFront" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_idCardFront').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('idCardFront')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('idCardFront')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+              <!-- 6. idCardBack -->
+              <div class="manager-photo-item" id="mgrCard_idCardBack">
+                <span class="manager-photo-title">البطاقة الموحدة (الوجه الخلفي)</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_idCardBack">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('idCardBack')">
+                  <img id="mgrPreview_idCardBack" src="" style="display: none;" alt="البطاقة الموحدة - خلفي">
+                  <div class="empty-placeholder" id="mgrEmpty_idCardBack">
+                    <i class="fa-solid fa-address-card" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_idCardBack" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'idCardBack')">
+                <input type="hidden" id="mgrCamera_idCardBack">
+                <input type="hidden" id="mgrDeleted_idCardBack" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_idCardBack').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('idCardBack')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('idCardBack')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+              <!-- 7. residenceCardFront -->
+              <div class="manager-photo-item" id="mgrCard_residenceCardFront">
+                <span class="manager-photo-title">بطاقة السكن (الوجه الأمامي)</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_residenceCardFront">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('residenceCardFront')">
+                  <img id="mgrPreview_residenceCardFront" src="" style="display: none;" alt="بطاقة السكن - أمامي">
+                  <div class="empty-placeholder" id="mgrEmpty_residenceCardFront">
+                    <i class="fa-solid fa-house-chimney" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_residenceCardFront" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'residenceCardFront')">
+                <input type="hidden" id="mgrCamera_residenceCardFront">
+                <input type="hidden" id="mgrDeleted_residenceCardFront" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_residenceCardFront').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('residenceCardFront')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('residenceCardFront')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+              <!-- 8. residenceCardBack -->
+              <div class="manager-photo-item" id="mgrCard_residenceCardBack">
+                <span class="manager-photo-title">بطاقة السكن (الوجه الخلفي)</span>
+                <span class="manager-photo-status-badge missing" id="mgrStatus_residenceCardBack">غير مرفوع بعد</span>
+                <div class="manager-photo-thumb-wrap" onclick="previewManagerPhoto('residenceCardBack')">
+                  <img id="mgrPreview_residenceCardBack" src="" style="display: none;" alt="بطاقة السكن - خلفي">
+                  <div class="empty-placeholder" id="mgrEmpty_residenceCardBack">
+                    <i class="fa-solid fa-house-chimney" style="font-size: 2rem;"></i>
+                    <span>لا توجد صورة</span>
+                  </div>
+                </div>
+                <input type="file" id="mgrFile_residenceCardBack" accept="image/*" style="display: none;" onchange="handleManagerPhotoSelected(this, 'residenceCardBack')">
+                <input type="hidden" id="mgrCamera_residenceCardBack">
+                <input type="hidden" id="mgrDeleted_residenceCardBack" value="false">
+                <div class="manager-photo-controls">
+                  <button type="button" class="btn-photo-action edit" onclick="document.getElementById('mgrFile_residenceCardBack').click()" title="اختيار صورة من الجهاز">
+                    <i class="fa-solid fa-upload"></i> رفع
+                  </button>
+                  <button type="button" class="btn-photo-action edit" onclick="openCameraForManager('residenceCardBack')" title="التقاط بالكاميرا">
+                    <i class="fa-solid fa-camera"></i> كاميرا
+                  </button>
+                  <button type="button" class="btn-photo-action delete" onclick="clearManagerPhoto('residenceCardBack')" title="حذف الصورة">
+                    <i class="fa-solid fa-trash"></i> حذف
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('employeeEditModal')">إلغاء</button>
-          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ السجل</button>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('employeeEditModal')">إلغاء وتراجع</button>
+          <button type="submit" class="btn btn-primary btn-lg" id="btnSaveManagerEdit" style="padding: 0.85rem 2rem; font-weight: 800;">
+            <i class="fa-solid fa-cloud-arrow-up"></i> حفظ وتحديث كافة البيانات والمستمسكات
+          </button>
         </div>
       </form>
     </div>
@@ -997,6 +1499,109 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: MANAGER SINGLE PHOTO UPLOAD / REPLACE ==================== -->
+  <div class="modal-overlay" id="managerPhotoUploadModal">
+    <div class="modal-window" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-camera-rotate" style="color: var(--sage-700);"></i>
+          <span id="managerPhotoUploadTitle">إضافة / تعديل مستمسك للموظف</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('managerPhotoUploadModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form id="managerPhotoUploadForm" onsubmit="handleManagerSaveSinglePhoto(event)">
+        <input type="hidden" id="mgrUploadEmpId">
+        <input type="hidden" id="mgrUploadPhotoKey">
+        <input type="hidden" id="mgrUploadCameraData">
+
+        <div class="modal-body">
+          <div class="custom-alert alert-info" style="margin-bottom: 1.25rem;">
+            <i class="fa-solid fa-circle-info"></i>
+            <div>
+              <strong id="mgrUploadEmpName" style="display: block; margin-bottom: 0.2rem;">الموظف</strong>
+              <span id="mgrUploadDocName" style="font-size: 0.88rem;">المستمسك</span>
+            </div>
+          </div>
+
+          <div id="managerPhotoUploadError" class="custom-alert alert-danger" style="display: none;"></div>
+
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label"><span class="required-star">*</span>اختر صورة المستمسك من جهازك أو استخدم الكاميرا:</label>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('mgrPhotoFileInput').click()" style="flex: 1;">
+                <i class="fa-solid fa-folder-open"></i> اختيار من الجهاز
+              </button>
+              <button type="button" class="btn btn-primary" onclick="openCameraForManagerUpload()" style="flex: 1;">
+                <i class="fa-solid fa-camera"></i> تشغيل الكاميرا
+              </button>
+            </div>
+            <input type="file" id="mgrPhotoFileInput" accept="image/*" style="display: none;" onchange="handleManagerFileChosen(this)">
+          </div>
+
+          <!-- Preview box -->
+          <div id="mgrPhotoPreviewContainer" class="attachment-preview-box" style="display: none; height: 220px; margin-bottom: 0.5rem;">
+            <img id="mgrPhotoPreviewImg" src="" alt="معاينة الصورة" style="max-height: 200px; max-width: 100%; border-radius: var(--radius-md); object-fit: contain;">
+          </div>
+          <span id="mgrPhotoStatusHelper" class="input-helper" style="text-align: center; display: block;">قم باختيار ملف صورة أو التقاط صورة لاعتمادها مباشرة</span>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('managerPhotoUploadModal')">إلغاء</button>
+          <button type="submit" class="btn btn-success" id="btnSaveManagerPhoto" disabled>
+            <i class="fa-solid fa-cloud-arrow-up"></i> حفظ واعتماد الصورة فوراً
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: PHOTO ACTIONS (مشاهدة / تغيير / حذف) ==================== -->
+  <div class="modal-overlay" id="photoActionDialogModal">
+    <div class="modal-window" style="max-width: 480px; text-align: center;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-photo-film" style="color: var(--sage-700);"></i>
+          <span id="photoActionDialogTitle">إدارة المستمسك</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('photoActionDialogModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div id="photoActionThumbContainer" style="margin-bottom: 1.25rem; border-radius: var(--radius-md); overflow: hidden; max-height: 220px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border: 1.5px solid #e2e8f0;">
+          <img id="photoActionThumbImg" src="" style="max-width: 100%; max-height: 210px; object-fit: contain;">
+        </div>
+        <h4 id="photoActionDocName" style="margin: 0 0 0.4rem 0; font-weight: 800; color: var(--sage-900); font-size: 1.15rem;"></h4>
+        <p id="photoActionEmpName" style="margin: 0 0 1.5rem 0; font-size: 0.9rem; color: var(--text-secondary);"></p>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+          <!-- 1. مشاهدة -->
+          <button type="button" class="btn btn-secondary" id="btnActionViewPhoto" style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.85rem 0.5rem; font-weight: 800;">
+            <i class="fa-solid fa-eye" style="font-size: 1.4rem; color: var(--sage-700);"></i>
+            <span>مشاهدة وتكبير</span>
+          </button>
+
+          <!-- 2. تغيير -->
+          <button type="button" class="btn btn-primary" id="btnActionChangePhoto" style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.85rem 0.5rem; font-weight: 800; background: var(--sage-700);">
+            <i class="fa-solid fa-camera-rotate" style="font-size: 1.4rem;"></i>
+            <span>تغيير واستبدال</span>
+          </button>
+
+          <!-- 3. حذف -->
+          <button type="button" class="btn btn-outline-danger" id="btnActionDeletePhoto" style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.85rem 0.5rem; font-weight: 800;">
+            <i class="fa-solid fa-trash-can" style="font-size: 1.4rem;"></i>
+            <span>حذف الصورة</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('photoActionDialogModal')">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== IMAGE LIGHTBOX ==================== -->
   <div class="lightbox-overlay" id="imageLightbox" onclick="handleLightboxBackdropClick(event)">
     <div class="lightbox-content">
@@ -1033,13 +1638,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
 
-  <!-- Client-side ExcelJS & JSZip & FileSaver for standalone browser exports -->
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <!-- Client-side ExcelJS & JSZip & FileSaver & Mammoth (loaded with defer for maximum page speed) -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" defer></script>
 
   <!-- Firebase Service & App Logic -->
-  <script src="js/firebase-service.js?v=2.5.0"></script>
-  <script src="js/app.js?v=2.5.0"></script>
+  <script src="js/firebase-service.js?v=2.7.0"></script>
+  <script src="js/app.js?v=2.7.0"></script>
 </body>
 </html>

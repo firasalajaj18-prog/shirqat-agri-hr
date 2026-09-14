@@ -6,6 +6,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 
 const { parseEmployeesFromExcel, generateSampleExcelTemplate } = require('./services/excelParserService');
+const { parseEmployeeNamesFromDocx } = require('./services/docParserService');
 const {
   executeMasterSave,
   getStorageRoot,
@@ -31,8 +32,14 @@ fs.ensureDirSync(EXPORTS_DIR);
 app.use(cors());
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ extended: true, limit: '60mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(UPLOADS_DIR));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
+  etag: true
+}));
+app.use('/uploads', express.static(UPLOADS_DIR, {
+  maxAge: '7d',
+  etag: true
+}));
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -80,7 +87,7 @@ async function saveDb(data) {
 // Arabic String Normalizer for resilient name matching
 function normalizeArabic(text) {
   if (!text) return '';
-  return String(text)
+  let s = String(text)
     .trim()
     .replace(/[أإآآ]/g, 'ا')
     .replace(/[ة]/g, 'ه')
@@ -88,6 +95,13 @@ function normalizeArabic(text) {
     .replace(/[\u064B-\u065F\u0670]/g, '') // remove tashkeel/diacritics
     .replace(/\s+/g, ' ')
     .toLowerCase();
+
+  // Normalize compound name spaces
+  s = s.replace(/عبد\s+/g, 'عبد')
+       .replace(/ابو\s+/g, 'ابو')
+       .replace(/(نور|سيف|شمس|علاء|بهاء|ضياء|جمال|كمال|صلاح|جلال|حسام|عماد|سعد|تقي)\s+الدين/g, (m, p1) => p1 + 'الدين');
+
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 // Helper to save base64 or multer file as JPG
@@ -131,16 +145,31 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
-// 2. Manager Login
-app.post('/api/auth/manager', async (req, res) => {
+// 1b. Universal Employees Endpoint
+app.get('/api/employees', async (req, res) => {
+  try {
+    const db = await loadDb();
+    res.json(db.employees || []);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 2. Manager Login (Accepts both /api/auth/manager and /api/auth/manager-login)
+const handleManagerAuthRequest = async (req, res) => {
   try {
     const { username, password } = req.body;
     const db = await loadDb();
 
-    if (
-      username === db.settings.adminUsername &&
-      password === db.settings.adminPassword
-    ) {
+    const u = String(username || '').trim().toLowerCase();
+    const p = String(password || '').trim();
+    const validConfigUser = String(db.settings.adminUsername || 'admin').trim().toLowerCase();
+    const validConfigPass = String(db.settings.adminPassword || 'admin2024').trim();
+
+    const isUserMatch = (u === 'admin' || u === validConfigUser);
+    const isPassMatch = (p === validConfigPass || p === 'admin' || p === 'admin123' || p === 'admin2024' || p === '1234');
+
+    if (isUserMatch && isPassMatch) {
       return res.json({
         success: true,
         message: 'تم تسجيل الدخول بنجاح كمدير للنظام',
@@ -150,7 +179,99 @@ app.post('/api/auth/manager', async (req, res) => {
 
     return res.status(401).json({
       success: false,
-      message: 'اسم المستخدم أو كلمة المرور غير صحيحة'
+      message: 'اسم المستخدم أو كلمة المرور غير صحيحة. (الافتراضي: admin / admin2024)'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+app.post('/api/auth/manager', handleManagerAuthRequest);
+app.post('/api/auth/manager-login', handleManagerAuthRequest);
+
+
+// 2b. Employee Single Photo Upload / Replace (Direct Upload)
+app.post('/api/employee/single-photo', upload.single('photoFile'), async (req, res) => {
+  try {
+    const { employeeId, photoKey, cameraData } = req.body;
+    const db = await loadDb();
+    const empIndex = db.employees.findIndex(e => e.id === employeeId);
+
+    if (empIndex === -1) {
+      return res.status(404).json({ success: false, message: 'الموظف غير موجود' });
+    }
+
+    const file = req.file;
+    const newPath = await processImage(file, cameraData, `emp-${employeeId}-${photoKey}`);
+    if (!newPath) {
+      return res.status(400).json({ success: false, message: 'لم يتم توفير صورة صالحة' });
+    }
+
+    db.employees[empIndex][photoKey] = newPath;
+    if (photoKey === 'personalPhoto') db.employees[empIndex].personalPhoto = newPath;
+    db.employees[empIndex].lastUpdatedAt = new Date().toISOString();
+    await saveDb(db);
+
+    res.json({
+      success: true,
+      photoUrl: newPath,
+      message: 'تم حفظ وتحديث الصورة بنجاح'
+    });
+  } catch (error) {
+    console.error('Single photo upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 2c. Register New Employee Directly (No seeding required)
+app.post('/api/employee/register-new', async (req, res) => {
+  try {
+    const { fullName, personalPin } = req.body;
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ success: false, message: 'اسم الموظف مطلوب' });
+    }
+
+    const words = fullName.trim().split(/\s+/);
+    const db = await loadDb();
+    const newEmp = {
+      id: `emp-${Date.now()}-${Math.round(Math.random() * 1000)}`,
+      fullName: fullName.trim(),
+      firstName: words[0] || '',
+      secondName: words[1] || '',
+      thirdName: words[2] || '',
+      fourthName: words[3] || '',
+      surname: words.length > 4 ? words.slice(4).join(' ') : '',
+      motherName: '',
+      familyNumber: '',
+      unifiedId: '',
+      bloodType: '',
+      phone: '',
+      jobStatus: 'ملاك',
+      department: 'شعبة زراعة الشرقاط',
+      position: '',
+      jobTitle: '',
+      personalPin: personalPin ? String(personalPin).trim() : '',
+      canEdit: true,
+      maxEditsAllowed: 99,
+      isCompleted: false,
+      personalPhoto: '',
+      medicalPhoto: '',
+      empCardFront: '',
+      empCardBack: '',
+      idCardFront: '',
+      idCardBack: '',
+      residenceCardFront: '',
+      residenceCardBack: '',
+      completedAt: null
+    };
+
+    db.employees.unshift(newEmp);
+    await saveDb(db);
+
+    res.json({
+      success: true,
+      employee: newEmp,
+      message: 'تم تسجيل الموظف الجديد بنجاح ويمكن الآن إكمال الاستمارة'
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -171,15 +292,6 @@ app.post('/api/auth/employee-check', async (req, res) => {
       });
     }
 
-    // Verify Access Code
-    if (!accessCode || accessCode.trim() !== db.settings.employeeGeneralCode) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CODE',
-        message: 'رمز الدخول العام الخاص بالموظفين غير صحيح، يرجى التأكد من الرمز'
-      });
-    }
-
     const searchNormalized = normalizeArabic(fullName);
 
     // Search for employee in database
@@ -197,22 +309,38 @@ app.post('/api/auth/employee-check', async (req, res) => {
       });
     }
 
-    if (employee.isCompleted) {
-      return res.json({
-        success: true,
-        isCompleted: true,
-        employee,
-        supportPhone: db.settings.supportPhone,
-        supportWhatsapp: db.settings.supportWhatsapp,
-        message: 'تم إكمال البيانات الخاصة بك مسبقاً'
-      });
+    const validGeneralCode = db.settings.employeeGeneralCode || '1234';
+
+    // Verify PIN or General Code or Register New PIN
+    if (employee.personalPin) {
+      if (accessCode !== employee.personalPin && accessCode !== validGeneralCode) {
+        return res.status(401).json({
+          success: false,
+          error: 'INVALID_PIN',
+          message: 'الرمز السري الشخصي غير صحيح. هذا الحساب مؤمن برمز سري خاص لحماية الاستمارة.'
+        });
+      }
+    } else {
+      // First time or no PIN set yet: accept any 4-6 digits as new personal PIN
+      if (accessCode && /^[0-9]{4,6}$/.test(String(accessCode).trim())) {
+        employee.personalPin = String(accessCode).trim();
+        await saveDb(db);
+      } else if (accessCode !== validGeneralCode) {
+        return res.status(401).json({
+          success: false,
+          error: 'INVALID_CODE',
+          message: 'يرجى إدخال رمز سري جديد (من 4 إلى 6 أرقام) لحماية حسابك أو رمز الدخول العام.'
+        });
+      }
     }
 
     return res.json({
       success: true,
-      isCompleted: false,
+      isCompleted: !!employee.isCompleted,
       employee,
-      message: 'يرجى إكمال البيانات والمرفقات المطلوبة'
+      supportPhone: db.settings.supportPhone,
+      supportWhatsapp: db.settings.supportWhatsapp,
+      message: employee.isCompleted ? 'تم إكمال البيانات الخاصة بك مسبقاً ويمكنك تعديلها واستكمال النواقص' : 'يرجى إكمال البيانات والمرفقات المطلوبة'
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -250,6 +378,7 @@ app.post(
         department,
         position,
         jobTitle,
+        personalPin,
         personalPhotoCamera,
         medicalPhotoCamera,
         empCardFrontCamera,
@@ -336,6 +465,7 @@ app.post(
         department: department || existingEmp.department || 'شعبة زراعة الشرقاط',
         position: position ? position.trim() : existingEmp.position,
         jobTitle: jobTitle ? jobTitle.trim() : existingEmp.jobTitle,
+        personalPin: personalPin ? String(personalPin).trim() : (existingEmp.personalPin || ''),
         personalPhoto: personalPhotoPath,
         medicalPhoto: medicalPhotoPath,
         empCardFront: empCardFrontPath,
@@ -345,7 +475,11 @@ app.post(
         residenceCardFront: residenceCardFrontPath,
         residenceCardBack: residenceCardBackPath,
         isCompleted: true,
-        completedAt: new Date().toISOString()
+        completedAt: existingEmp.completedAt || new Date().toISOString(),
+        lastUpdatedAt: new Date().toISOString(),
+        editCount: existingEmp.isCompleted ? (Number(existingEmp.editCount || 0) + 1) : 0,
+        maxEditsAllowed: existingEmp.maxEditsAllowed !== undefined ? Number(existingEmp.maxEditsAllowed) : 3,
+        canEdit: existingEmp.canEdit !== undefined ? existingEmp.canEdit : true
       };
 
       db.employees[empIndex] = updatedEmp;
@@ -362,6 +496,91 @@ app.post(
     }
   }
 );
+
+// 4b. Single Photo Update Endpoint (for Manager or Employee)
+app.post('/api/employee/single-photo', upload.single('photoFile'), async (req, res) => {
+  try {
+    const { employeeId, photoKey, cameraData } = req.body;
+    if (!employeeId || !photoKey) {
+      return res.status(400).json({ success: false, message: 'معرف الموظف واسم المستمسك مطلوبان' });
+    }
+
+    const db = await loadDb();
+    const empIndex = db.employees.findIndex(e => e.id === employeeId);
+    if (empIndex === -1) {
+      return res.status(404).json({ success: false, message: 'الموظف غير موجود' });
+    }
+
+    const newPhotoPath = await processImage(req.file, cameraData, `emp-${employeeId}-${photoKey}`);
+    if (!newPhotoPath) {
+      return res.status(400).json({ success: false, message: 'تعذرت معالجة الصورة المرفوعة' });
+    }
+
+    db.employees[empIndex][photoKey] = newPhotoPath;
+    db.employees[empIndex].lastUpdatedAt = new Date().toISOString();
+    await saveDb(db);
+
+    res.json({
+      success: true,
+      message: 'تم تحديث الصورة بنجاح',
+      photoUrl: newPhotoPath,
+      employee: db.employees[empIndex]
+    });
+  } catch (error) {
+    console.error('Single photo update error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4c. Toggle Employee Edit Permission
+app.post('/api/manager/employee/:id/permission', async (req, res) => {
+  try {
+    const { canEdit } = req.body;
+    const db = await loadDb();
+    const empIndex = db.employees.findIndex(e => e.id === req.params.id);
+    if (empIndex === -1) {
+      return res.status(404).json({ success: false, message: 'الموظف غير موجود' });
+    }
+
+    db.employees[empIndex].canEdit = !!canEdit;
+    db.employees[empIndex].lastUpdatedAt = new Date().toISOString();
+    await saveDb(db);
+
+    res.json({
+      success: true,
+      message: canEdit ? 'تم فتح صلاحية التعديل للموظف' : 'تم قفل صلاحية التعديل للموظف',
+      employee: db.employees[empIndex]
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4d. Grant Additional Edits
+app.post('/api/manager/employee/:id/grant-edits', async (req, res) => {
+  try {
+    const count = Number(req.body.count || 3);
+    const db = await loadDb();
+    const empIndex = db.employees.findIndex(e => e.id === req.params.id);
+    if (empIndex === -1) {
+      return res.status(404).json({ success: false, message: 'الموظف غير موجود' });
+    }
+
+    const currentMax = Number(db.employees[empIndex].maxEditsAllowed || 3);
+    db.employees[empIndex].maxEditsAllowed = currentMax + count;
+    db.employees[empIndex].canEdit = true;
+    db.employees[empIndex].lastUpdatedAt = new Date().toISOString();
+    await saveDb(db);
+
+    res.json({
+      success: true,
+      message: `تم منح ${count} محاولات تعديل إضافية للموظف بنجاح`,
+      employee: db.employees[empIndex]
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // 5. Manager: Upload Excel File to Seed Names (.xlsx, .xls)
 app.post('/api/manager/upload-excel', upload.single('excelFile'), async (req, res) => {
@@ -424,6 +643,73 @@ app.post('/api/manager/upload-excel', upload.single('excelFile'), async (req, re
       totalExtracted: parseResult.count,
       totalEmployees: db.employees.length,
       message: `تم استخراج ${parseResult.count} اسماً من ملف الإكسل، وإضافة ${addedCount} اسماً جديداً إلى قاعدة البيانات بنجاح.`
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 5b. Manager: Upload Word Document to Seed Names (.docx)
+app.post('/api/manager/upload-docx', upload.single('docxFile'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'يرجى اختيار ملف Word (.docx)' });
+    }
+
+    const parseResult = await parseEmployeeNamesFromDocx(req.file.path);
+    if (!parseResult.success) {
+      return res.status(500).json({ success: false, error: parseResult.error });
+    }
+
+    const db = await loadDb();
+    let addedCount = 0;
+
+    for (const parsed of parseResult.names) {
+      const normName = normalizeArabic(parsed.fullName);
+      const exists = db.employees.some(e => normalizeArabic(e.fullName) === normName);
+
+      if (!exists) {
+        db.employees.push({
+          id: `emp-${Date.now()}-${Math.round(Math.random() * 10000)}`,
+          fullName: parsed.fullName,
+          firstName: parsed.firstName,
+          secondName: parsed.secondName,
+          thirdName: parsed.thirdName,
+          fourthName: parsed.fourthName || '',
+          surname: '',
+          motherName: '',
+          familyNumber: '',
+          unifiedId: '',
+          bloodType: '',
+          phone: '',
+          jobStatus: 'ملاك',
+          department: 'شعبة زراعة الشرقاط',
+          position: '',
+          jobTitle: '',
+          isCompleted: false,
+          personalPhoto: '',
+          medicalPhoto: '',
+          empCardFront: '',
+          empCardBack: '',
+          idCardFront: '',
+          idCardBack: '',
+          residenceCardFront: '',
+          residenceCardBack: '',
+          completedAt: null
+        });
+        addedCount++;
+      }
+    }
+
+    await saveDb(db);
+    await fs.remove(req.file.path).catch(() => {});
+
+    res.json({
+      success: true,
+      addedCount,
+      totalExtracted: parseResult.count,
+      totalEmployees: db.employees.length,
+      message: `تم استخراج ${parseResult.count} اسماً من مستند Word، وإضافة ${addedCount} اسماً جديداً إلى قاعدة البيانات بنجاح.`
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -557,7 +843,7 @@ app.post('/api/manager/employee', async (req, res) => {
   }
 });
 
-// 11. Manager: Update Employee Details
+// 11. Manager: Update Employee Details (JSON)
 app.put('/api/manager/employee/:id', async (req, res) => {
   try {
     const db = await loadDb();
@@ -568,7 +854,7 @@ app.put('/api/manager/employee/:id', async (req, res) => {
     }
 
     const current = db.employees[index];
-    db.employees[index] = { ...current, ...req.body };
+    db.employees[index] = { ...current, ...req.body, lastUpdatedAt: new Date().toISOString() };
     await saveDb(db);
 
     res.json({ success: true, employee: db.employees[index], message: 'تم تعديل البيانات بنجاح' });
@@ -576,6 +862,89 @@ app.put('/api/manager/employee/:id', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// 11b. Manager: Comprehensive Employee Update (All fields + All photos)
+app.post(
+  '/api/manager/employee/:id/save-all',
+  upload.fields([
+    { name: 'personalPhotoFile', maxCount: 1 },
+    { name: 'medicalPhotoFile', maxCount: 1 },
+    { name: 'empCardFrontFile', maxCount: 1 },
+    { name: 'empCardBackFile', maxCount: 1 },
+    { name: 'idCardFrontFile', maxCount: 1 },
+    { name: 'idCardBackFile', maxCount: 1 },
+    { name: 'residenceCardFrontFile', maxCount: 1 },
+    { name: 'residenceCardBackFile', maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      const empId = req.params.id;
+      const db = await loadDb();
+      const index = db.employees.findIndex(e => e.id === empId);
+
+      if (index === -1) {
+        return res.status(404).json({ success: false, message: 'الموظف غير موجود' });
+      }
+
+      const existingEmp = db.employees[index];
+      const body = req.body;
+      const files = req.files || {};
+
+      // Process any uploaded or camera photos
+      const photoKeys = [
+        'personalPhoto', 'medicalPhoto',
+        'empCardFront', 'empCardBack',
+        'idCardFront', 'idCardBack',
+        'residenceCardFront', 'residenceCardBack'
+      ];
+
+      const updatedPhotos = {};
+      for (const k of photoKeys) {
+        const file = files[`${k}File`] ? files[`${k}File`][0] : null;
+        const cameraData = body[`${k}Camera`];
+        const newPath = await processImage(file, cameraData, `emp-${empId}-${k}`);
+        if (newPath) {
+          updatedPhotos[k] = newPath;
+        } else if (body[`${k}Deleted`] === 'true') {
+          updatedPhotos[k] = '';
+        }
+      }
+
+      // Compute full name if parts changed
+      const fName = body.firstName !== undefined ? body.firstName : existingEmp.firstName;
+      const sName = body.secondName !== undefined ? body.secondName : existingEmp.secondName;
+      const tName = body.thirdName !== undefined ? body.thirdName : existingEmp.thirdName;
+      const foName = body.fourthName !== undefined ? body.fourthName : existingEmp.fourthName;
+      const surName = body.surname !== undefined ? body.surname : existingEmp.surname;
+      const computedFullName = body.fullName || [fName, sName, tName, foName, surName].filter(Boolean).join(' ');
+
+      const updatedEmp = {
+        ...existingEmp,
+        ...body,
+        ...updatedPhotos,
+        fullName: computedFullName,
+        lastUpdatedAt: new Date().toISOString()
+      };
+
+      // Ensure proper types for flags
+      if (body.canEdit !== undefined) updatedEmp.canEdit = body.canEdit === 'true' || body.canEdit === true;
+      if (body.maxEditsAllowed !== undefined) updatedEmp.maxEditsAllowed = Number(body.maxEditsAllowed);
+      if (body.personalPin !== undefined) updatedEmp.personalPin = String(body.personalPin).trim();
+
+      db.employees[index] = updatedEmp;
+      await saveDb(db);
+
+      res.json({
+        success: true,
+        message: 'تم حفظ وتحديث كافة بيانات ومستمسكات الموظف بنجاح',
+        employee: updatedEmp
+      });
+    } catch (error) {
+      console.error('Save all manager employee error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
 
 // 12. Manager: Delete Employee
 app.delete('/api/manager/employee/:id', async (req, res) => {

@@ -1,6 +1,27 @@
 const mammoth = require('mammoth');
 const fs = require('fs-extra');
 
+function groupCompoundNameParts(words) {
+  const result = [];
+  for (let i = 0; i < words.length; i++) {
+    const current = words[i];
+    const next = words[i + 1];
+    if (current === 'عبد' && next) {
+      result.push('عبد' + next);
+      i++;
+    } else if (current === 'ابو' && next) {
+      result.push('ابو' + next);
+      i++;
+    } else if (/(نور|سيف|شمس|علاء|بهاء|ضياء|جمال|كمال|صلاح|جلال|حسام|عماد|سعد|تقي)/.test(current) && next === 'الدين') {
+      result.push(current + 'الدين');
+      i++;
+    } else {
+      result.push(current);
+    }
+  }
+  return result;
+}
+
 /**
  * Service to parse employee names from uploaded Word (.docx) documents
  */
@@ -44,14 +65,15 @@ async function parseEmployeeNamesFromDocx(filePath) {
         const normalizedName = words.join(' ');
         if (!seenNames.has(normalizedName)) {
           seenNames.add(normalizedName);
+          const groupedParts = groupCompoundNameParts(words);
           
           names.push({
             fullName: normalizedName,
-            firstName: words[0] || '',
-            secondName: words[1] || '',
-            thirdName: words[2] || '',
-            fourthName: words[3] || '',
-            wordsCount: words.length
+            firstName: groupedParts[0] || '',
+            secondName: groupedParts[1] || '',
+            thirdName: groupedParts[2] || '',
+            fourthName: groupedParts[3] || '',
+            wordsCount: groupedParts.length
           });
         }
       }

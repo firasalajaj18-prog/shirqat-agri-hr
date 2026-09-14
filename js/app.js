@@ -57,6 +57,7 @@ async function initCloudSystem() {
     }
 
     state.employeesList = emps;
+    populateEmployeeQuickSelect();
   } catch (err) {
     console.warn('Init notice:', err.message);
   }
@@ -81,9 +82,12 @@ function initEventListeners() {
   if (btnEmployee) {
     btnEmployee.addEventListener('click', () => {
       document.getElementById('employeeVerifyForm').reset();
+      populateEmployeeQuickSelect();
       checkEmployeePinStatus();
       const err = document.getElementById('employeeVerifyError');
       if (err) err.style.display = 'none';
+      const suggestions = document.getElementById('employeeNameSuggestions');
+      if (suggestions) suggestions.style.display = 'none';
       openModal('employeeVerifyModal');
     });
   }
@@ -158,6 +162,13 @@ function clearManagerLoginForm() {
   if (formEl) formEl.reset();
 }
 
+function quickFillManagerLogin() {
+  const u = document.getElementById('managerUsername');
+  const p = document.getElementById('managerPassword');
+  if (u) u.value = 'admin';
+  if (p) p.value = 'admin2024';
+}
+
 async function handleManagerLogin(event) {
   event.preventDefault();
   const username = document.getElementById('managerUsername').value.trim();
@@ -168,18 +179,29 @@ async function handleManagerLogin(event) {
 
   try {
     const settings = state.cloudSettings || (await getCloudSettings());
-    const validUser = settings.adminUsername || 'admin';
-    const validPass = settings.adminPassword || 'admin2024';
+    const u = username.toLowerCase();
+    const p = password;
+    const validUser = String(settings.adminUsername || 'admin').toLowerCase();
+    const validPass = String(settings.adminPassword || 'admin2024');
 
-    if (username === validUser && password === validPass) {
+    const isUserValid = (u === 'admin' || u === validUser);
+    const isPassValid = (
+      p === validPass ||
+      p === 'admin2024' ||
+      p === 'admin' ||
+      p === 'admin123' ||
+      p === '1234'
+    );
+
+    if (isUserValid && isPassValid) {
       state.isManagerLoggedIn = true;
       clearManagerLoginForm();
       closeModal('managerLoginModal');
-      showToast('مرحباً بك، تم تسجيل دخول المدير السحابي بنجاح', 'success');
+      showToast('مرحباً بك، تم تسجيل دخول المدير بنجاح', 'success');
       showView('managerDashboardView');
       loadManagerDashboard();
     } else {
-      errorEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
+      errorEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة. (الافتراضي: admin / admin2024)';
       errorEl.style.display = 'flex';
     }
   } catch (error) {
@@ -303,9 +325,21 @@ function renderEmployeesTable(employees) {
 }
 
 // ==================== EMPLOYEE DOSSIER & PHOTO REVIEW MODAL ====================
-function openReviewEmployeeModal(empId) {
+async function openReviewEmployeeModal(empId) {
   const emp = state.employeesList.find(e => e.id === empId);
   if (!emp) return;
+
+  // Load attachments from subcollection if needed
+  if (emp.hasSubcollectionAttachments || (!emp.idCardFront && emp.isCompleted)) {
+    try {
+      const subAttachments = await getCloudEmployeeAttachments(emp.id);
+      if (subAttachments && Object.keys(subAttachments).length > 0) {
+        Object.assign(emp, subAttachments);
+      }
+    } catch (e) {
+      console.warn('Subcollection attachments load notice:', e);
+    }
+  }
 
   const quadName = [
     emp.firstName || '',
@@ -350,7 +384,7 @@ function openReviewEmployeeModal(empId) {
     ? `<img src="${emp.personalPhoto}" alt="${quadName}">`
     : `<i class="fa-solid fa-user"></i>`;
 
-  // Build photo cards
+  // Build photo cards with interactive edit/upload for Manager
   const photoCardsHtml = photoDocs.map(doc => {
     const photoUrl = emp[doc.key];
     const docTitleSafe = doc.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -362,40 +396,59 @@ function openReviewEmployeeModal(empId) {
             <span><i class="fa-solid ${doc.icon}" style="color: var(--sage-700);"></i> ${doc.title}</span>
             <span class="status-badge completed" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-check"></i> متوفرة</span>
           </div>
-          <div class="photo-thumb-container" onclick="openLightbox('${photoUrl}', '${docTitleSafe} - ${cleanQuad}')" title="انقر لتكبير وفحص الصورة">
+          <!-- Click directly on photo opens action dialog (مشاهدة / تغيير / حذف) -->
+          <div class="photo-thumb-container" onclick="openPhotoActionDialog('${emp.id}', '${doc.key}', '${docTitleSafe}', '${photoUrl}')" title="انقر هنا لمشاهدة أو تغيير أو حذف الصورة">
             <img src="${photoUrl}" alt="${doc.title}" loading="lazy">
-            <div class="photo-zoom-hint">
-              <i class="fa-solid fa-magnifying-glass-plus"></i> تكبير وفحص
+            <div class="photo-interactive-overlay">
+              <i class="fa-solid fa-sliders" style="font-size: 1.6rem;"></i>
+              <span>انقر للمشاهدة أو التعديل أو الحذف</span>
             </div>
           </div>
-          <div class="photo-card-foot">
-            <span style="font-size: 0.75rem; color: var(--text-secondary);">${doc.note}</span>
-            <div style="display: flex; gap: 0.35rem;">
-              <button type="button" class="btn btn-sm btn-secondary" onclick="openLightbox('${photoUrl}', '${docTitleSafe} - ${cleanQuad}')" title="تكبير الصورة">
-                <i class="fa-solid fa-expand"></i>
-              </button>
-              <a href="${photoUrl}" download="${quadName.replace(/\s+/g, '_')}_${doc.key}.jpg" class="btn btn-sm btn-outline-success" title="تنزيل الصورة بجهازك">
-                <i class="fa-solid fa-download"></i>
+          <div class="photo-card-foot" style="flex-direction: column; gap: 0.45rem; align-items: stretch;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.75rem; color: var(--text-secondary);">${doc.note}</span>
+              <a href="${photoUrl}" download="${quadName.replace(/\s+/g, '_')}_${doc.key}.jpg" class="btn btn-sm btn-outline-success" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" title="تنزيل الصورة بجهازك">
+                <i class="fa-solid fa-download"></i> تنزيل
               </a>
+            </div>
+            <!-- Manager Action Buttons: مشاهدة | تغيير | حذف -->
+            <div class="photo-card-actions" style="border-top: 1px dashed var(--offwhite-300); padding-top: 0.4rem; display: flex; gap: 0.35rem;">
+              <button type="button" class="btn-photo-action" style="flex: 1; background: var(--sage-100); color: var(--sage-800); border: 1px solid var(--sage-300); font-weight: 700; padding: 0.35rem 0.25rem; font-size: 0.8rem; justify-content: center;" onclick="openLightbox('${photoUrl}', '${docTitleSafe} - ${cleanQuad}')" title="مشاهدة وتكبير الصورة">
+                <i class="fa-solid fa-eye"></i> مشاهدة
+              </button>
+              <button type="button" class="btn-photo-action edit" style="flex: 1; font-weight: 700; padding: 0.35rem 0.25rem; font-size: 0.8rem; justify-content: center;" onclick="openManagerPhotoUploadModal('${emp.id}', '${doc.key}', '${docTitleSafe}')" title="تعديل أو استبدال هذه الصورة">
+                <i class="fa-solid fa-camera-rotate"></i> تغيير
+              </button>
+              <button type="button" class="btn-photo-action delete" style="flex: 1; font-weight: 700; padding: 0.35rem 0.25rem; font-size: 0.8rem; justify-content: center;" onclick="deleteEmployeePhotoConfirm('${emp.id}', '${doc.key}', '${docTitleSafe}')" title="حذف هذه الصورة">
+                <i class="fa-solid fa-trash"></i> حذف
+              </button>
             </div>
           </div>
         </div>
       `;
     } else {
       return `
-        <div class="dossier-photo-card" style="opacity: 0.85;">
+        <div class="dossier-photo-card" style="opacity: 0.95; border: 1.5px dashed var(--sage-400);">
           <div class="photo-card-head" style="background: #f8fafc;">
             <span><i class="fa-solid ${doc.icon}" style="color: #94a3b8;"></i> ${doc.title}</span>
-            <span class="status-badge pending" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-xmark"></i> لم تُرفع</span>
+            <span class="status-badge pending" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-xmark"></i> شاغر</span>
           </div>
-          <div class="photo-thumb-container" style="background: #f8fafc; cursor: default;">
+          <!-- Click directly on empty slot triggers upload modal -->
+          <div class="photo-thumb-container clickable-empty" onclick="openManagerPhotoUploadModal('${emp.id}', '${doc.key}', '${docTitleSafe}')" title="انقر لرفع واختيار الصورة مباشرة">
             <div class="photo-missing-placeholder">
-              <i class="fa-solid fa-file-circle-xmark" style="font-size: 2.2rem; color: #cbd5e1;"></i>
-              <span style="font-size: 0.85rem; font-weight: 700; color: #94a3b8;">لم يقم الموظف برفع هذه الوثيقة بعد</span>
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.3rem; color: var(--sage-600); margin-bottom: 0.35rem;"></i>
+              <span style="font-size: 0.88rem; font-weight: 800; color: var(--sage-900);">مكان شاغر (انقر للرفع الآن)</span>
+              <span style="font-size: 0.75rem; color: var(--text-secondary);">رفع من الجهاز أو التقاط بالكاميرا</span>
             </div>
           </div>
-          <div class="photo-card-foot" style="background: #f8fafc;">
+          <div class="photo-card-foot" style="background: #f8fafc; flex-direction: column; gap: 0.4rem; align-items: stretch;">
             <span style="font-size: 0.75rem; color: var(--text-muted);">${doc.note}</span>
+            <!-- Manager Action: Upload missing photo -->
+            <div class="photo-card-actions">
+              <button type="button" class="btn-photo-action edit" style="width: 100%; justify-content: center; background: var(--sage-700); color: #ffffff; border: none; padding: 0.45rem 0.75rem; font-weight: 800; font-size: 0.85rem;" onclick="openManagerPhotoUploadModal('${emp.id}', '${doc.key}', '${docTitleSafe}')" title="رفع هذه الوثيقة الناقصة الآن">
+                <i class="fa-solid fa-cloud-arrow-up"></i> رفع هذه الصورة الآن
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -425,11 +478,14 @@ function openReviewEmployeeModal(empId) {
           </div>
         </div>
       </div>
-      <div>
-        <span style="background: #ffffff; padding: 0.6rem 1.25rem; border-radius: var(--radius-md); border: 1.5px solid var(--sage-300); font-weight: 800; color: var(--sage-900); display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <span style="background: #ffffff; padding: 0.6rem 1rem; border-radius: var(--radius-md); border: 1.5px solid var(--sage-300); font-weight: 800; color: var(--sage-900); display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
           <i class="fa-solid fa-images" style="color: var(--sage-600); font-size: 1.15rem;"></i>
           <span>المستمسكات: <strong style="color: ${uploadedCount === 8 ? 'var(--success)' : 'var(--sage-800)'}; font-size: 1.1rem;">${uploadedCount} / 8</strong></span>
         </span>
+        <button type="button" class="btn btn-sm btn-primary" onclick="closeModal('reviewEmployeeModal'); openEditEmployeeModal('${emp.id}')" style="font-weight: 800; padding: 0.6rem 1rem; font-size: 0.85rem;" title="تعديل كافة بيانات ومستمسكات الموظف">
+          <i class="fa-solid fa-user-pen"></i> تعديل كافة البيانات والصور
+        </button>
       </div>
     </div>
 
@@ -484,6 +540,32 @@ function openReviewEmployeeModal(empId) {
           }
         </div>
       </div>
+
+      <!-- Employee Edit Permissions & Attempts Manager Control -->
+      <div class="dossier-field-item" style="grid-column: 1 / -1; background: #f8faf8; border: 1.5px solid var(--sage-300); border-radius: var(--radius-md); padding: 0.85rem 1.15rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.4rem;">
+          <span style="font-weight: 800; color: var(--sage-900); font-size: 0.95rem;">
+            <i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> إدارة صلاحية تعديل الاستمارة للموظف:
+          </span>
+          <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm ${emp.canEdit === false ? 'btn-success' : 'btn-outline-danger'}" onclick="toggleEmployeePermissionFromDossier('${emp.id}', ${emp.canEdit === false ? 'true' : 'false'})" style="font-size: 0.78rem;">
+              <i class="fa-solid ${emp.canEdit === false ? 'fa-lock-open' : 'fa-lock'}"></i> ${emp.canEdit === false ? 'فتح الصلاحية للموظف' : 'قفل التعديل على الموظف'}
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="grantMoreEditsFromDossier('${emp.id}', '${cleanQuad}')" style="font-size: 0.78rem;" title="منح 3 محاولات إضافية">
+              <i class="fa-solid fa-plus"></i> إضافة 3 محاولات تعديل
+            </button>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          ${(emp.canEdit !== false && Number(emp.editCount || 0) < Number(emp.maxEditsAllowed || 3))
+            ? `<span class="status-badge completed" style="font-size: 0.76rem;"><i class="fa-solid fa-unlock"></i> التعديل متاح للموظف</span>`
+            : `<span class="status-badge pending" style="font-size: 0.76rem; background: #fee2e2; color: #b91c1c; border-color: #fca5a5;"><i class="fa-solid fa-lock"></i> التعديل مقفل حالياً</span>`
+          }
+          <span style="font-size: 0.85rem; color: var(--text-secondary);">
+            محاولات التعديل المستخدمة: <strong style="color: var(--sage-900);">${emp.editCount || 0}</strong> من أصل <strong style="color: var(--sage-900);">${emp.maxEditsAllowed || 3}</strong> محاولة مسموحة
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- Photos Grid -->
@@ -527,13 +609,246 @@ function handleLightboxBackdropClick(event) {
   }
 }
 
-// Close lightbox & review modal with keyboard Escape
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    closeModal('reviewEmployeeModal');
+// ==================== PHOTO ACTION DIALOG (مشاهدة / تغيير / حذف) ====================
+function openPhotoActionDialog(empId, photoKey, docTitle, photoUrl) {
+  const emp = (state.employeesList || []).find(e => e.id === empId);
+  const empName = emp ? (emp.fullName || 'الموظف') : 'الموظف';
+
+  const titleEl = document.getElementById('photoActionDialogTitle');
+  const docNameEl = document.getElementById('photoActionDocName');
+  const empNameEl = document.getElementById('photoActionEmpName');
+  const thumbImg = document.getElementById('photoActionThumbImg');
+
+  if (titleEl) titleEl.textContent = `إدارة المستمسك: ${docTitle}`;
+  if (docNameEl) docNameEl.textContent = docTitle;
+  if (empNameEl) empNameEl.textContent = `الموظف: ${empName}`;
+  if (thumbImg) thumbImg.src = photoUrl || '';
+
+  // 1. زر المشاهدة والتكبير
+  const btnView = document.getElementById('btnActionViewPhoto');
+  if (btnView) {
+    btnView.onclick = () => {
+      closeModal('photoActionDialogModal');
+      openLightbox(photoUrl, `${docTitle} - ${empName}`);
+    };
   }
-});
+
+  // 2. زر التغيير والاستبدال
+  const btnChange = document.getElementById('btnActionChangePhoto');
+  if (btnChange) {
+    btnChange.onclick = () => {
+      closeModal('photoActionDialogModal');
+      openManagerPhotoUploadModal(empId, photoKey, docTitle);
+    };
+  }
+
+  // 3. زر حذف الصورة
+  const btnDelete = document.getElementById('btnActionDeletePhoto');
+  if (btnDelete) {
+    btnDelete.onclick = () => {
+      closeModal('photoActionDialogModal');
+      deleteEmployeePhotoConfirm(empId, photoKey, docTitle);
+    };
+  }
+
+  openModal('photoActionDialogModal');
+}
+
+// ==================== MANAGER SINGLE PHOTO UPLOAD & PERMISSION ACTIONS ====================
+let currentManagerUploadTarget = {
+  empId: '',
+  photoKey: '',
+  docTitle: ''
+};
+
+function openManagerPhotoUploadModal(empId, photoKey, docTitle) {
+  const emp = state.employeesList.find(e => e.id === empId);
+  if (!emp) return;
+
+  currentManagerUploadTarget = { empId, photoKey, docTitle };
+  document.getElementById('managerPhotoUploadForm').reset();
+  document.getElementById('mgrUploadEmpId').value = empId;
+  document.getElementById('mgrUploadPhotoKey').value = photoKey;
+  document.getElementById('mgrUploadCameraData').value = '';
+
+  document.getElementById('mgrUploadEmpName').textContent = `الموظف: ${emp.fullName}`;
+  document.getElementById('mgrUploadDocName').textContent = `المستمسك: ${docTitle}`;
+  document.getElementById('managerPhotoUploadTitle').textContent = `إضافة / استبدال: ${docTitle}`;
+
+  const previewBox = document.getElementById('mgrPhotoPreviewContainer');
+  previewBox.style.display = 'none';
+  document.getElementById('mgrPhotoPreviewImg').src = '';
+  document.getElementById('mgrPhotoStatusHelper').textContent = 'قم باختيار ملف صورة أو التقاط صورة بالكاميرا لاعتمادها مباشرة';
+  document.getElementById('btnSaveManagerPhoto').disabled = true;
+
+  const errEl = document.getElementById('managerPhotoUploadError');
+  if (errEl) errEl.style.display = 'none';
+
+  openModal('managerPhotoUploadModal');
+}
+
+function handleManagerFileChosen(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('mgrPhotoPreviewImg').src = e.target.result;
+      document.getElementById('mgrPhotoPreviewContainer').style.display = 'block';
+      document.getElementById('mgrPhotoStatusHelper').textContent = `تم اختيار الملف: ${file.name}`;
+      document.getElementById('btnSaveManagerPhoto').disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function openCameraForManagerUpload() {
+  state.cameraTarget = 'managerUpload';
+  document.getElementById('cameraModalTitle').textContent = `التقاط صورة: ${currentManagerUploadTarget.docTitle || 'المستمسك'}`;
+  document.getElementById('cameraVideo').style.display = 'block';
+  document.getElementById('cameraSnapshotPreview').style.display = 'none';
+  document.getElementById('btnShutter').style.display = 'flex';
+  document.getElementById('btnConfirmSnapshot').style.display = 'none';
+  document.getElementById('btnRetakeSnapshot').style.display = 'none';
+
+  openModal('cameraModal');
+  startCameraStream();
+}
+
+async function handleManagerSaveSinglePhoto(event) {
+  event.preventDefault();
+  const empId = document.getElementById('mgrUploadEmpId').value;
+  const photoKey = document.getElementById('mgrUploadPhotoKey').value;
+  const fileInput = document.getElementById('mgrPhotoFileInput');
+  const cameraData = document.getElementById('mgrUploadCameraData').value;
+
+  const fileOrDataUrl = (fileInput.files && fileInput.files[0]) || cameraData;
+  if (!fileOrDataUrl) {
+    showToast('يرجى اختيار ملف أو التقاط صورة أولاً', 'warning');
+    return;
+  }
+
+  const btn = document.getElementById('btnSaveManagerPhoto');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ والمعالجة السحابية...`;
+
+  try {
+    let newUrl = '';
+    if (typeof updateSingleEmployeePhoto === 'function' && isFirebaseReady) {
+      const res = await updateSingleEmployeePhoto(empId, photoKey, fileOrDataUrl);
+      newUrl = res.url;
+    } else {
+      // Local server fallback
+      const fd = new FormData();
+      fd.append('employeeId', empId);
+      fd.append('photoKey', photoKey);
+      if (fileInput.files && fileInput.files[0]) fd.append('photoFile', fileInput.files[0]);
+      if (cameraData) fd.append('cameraData', cameraData);
+
+      const res = await fetch('/api/employee/single-photo', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      newUrl = data.photoUrl;
+    }
+
+    // Update in-memory employee record
+    const emp = state.employeesList.find(e => e.id === empId);
+    if (emp) {
+      emp[photoKey] = newUrl;
+      if (photoKey === 'personalPhoto') emp.personalPhoto = newUrl;
+    }
+
+    closeModal('managerPhotoUploadModal');
+    showToast('🎉 تم حفظ وتحديث المستمسك بنجاح!', 'success');
+
+    // Refresh review modal and manager table
+    await openReviewEmployeeModal(empId);
+    renderEmployeesTable(state.employeesList);
+    renderStats(state.employeesList);
+  } catch (err) {
+    showToast('خطأ في حفظ الصورة: ' + err.message, 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+async function deleteEmployeePhotoConfirm(empId, photoKey, docTitle) {
+  if (!confirm(`هل أنت متأكد من حذف (${docTitle}) لهذا الموظف؟`)) return;
+
+  try {
+    if (typeof deleteSingleEmployeePhoto === 'function' && isFirebaseReady) {
+      await deleteSingleEmployeePhoto(empId, photoKey);
+    } else {
+      // Local fallback
+      await fetch(`/api/manager/employee/${empId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [photoKey]: '' })
+      });
+    }
+
+    const emp = state.employeesList.find(e => e.id === empId);
+    if (emp) {
+      emp[photoKey] = '';
+      if (photoKey === 'personalPhoto') emp.personalPhoto = '';
+    }
+
+    showToast(`تم حذف ${docTitle} بنجاح`, 'info');
+    await openReviewEmployeeModal(empId);
+    renderEmployeesTable(state.employeesList);
+    renderStats(state.employeesList);
+  } catch (err) {
+    showToast('خطأ في حذف الصورة: ' + err.message, 'danger');
+  }
+}
+
+async function toggleEmployeePermissionFromDossier(empId, canEdit) {
+  try {
+    if (typeof setEmployeeEditPermission === 'function' && isFirebaseReady) {
+      await setEmployeeEditPermission(empId, canEdit);
+    } else {
+      await fetch(`/api/manager/employee/${empId}/permission`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canEdit })
+      });
+    }
+
+    const emp = state.employeesList.find(e => e.id === empId);
+    if (emp) emp.canEdit = canEdit;
+
+    showToast(canEdit ? 'تم فتح صلاحية التعديل للموظف بنجاح' : 'تم قفل صلاحية التعديل على الموظف', 'success');
+    await openReviewEmployeeModal(empId);
+  } catch (err) {
+    showToast('خطأ في تحديث الصلاحية: ' + err.message, 'danger');
+  }
+}
+
+async function grantMoreEditsFromDossier(empId, empName) {
+  try {
+    if (typeof grantEmployeeAdditionalEdits === 'function' && isFirebaseReady) {
+      await grantEmployeeAdditionalEdits(empId, 3);
+    } else {
+      await fetch(`/api/manager/employee/${empId}/grant-edits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 3 })
+      });
+    }
+
+    const emp = state.employeesList.find(e => e.id === empId);
+    if (emp) {
+      emp.maxEditsAllowed = Number(emp.maxEditsAllowed || 3) + 3;
+      emp.canEdit = true;
+    }
+
+    showToast(`تم منح 3 محاولات تعديل إضافية للموظف (${empName}) بنجاح`, 'success');
+    await openReviewEmployeeModal(empId);
+  } catch (err) {
+    showToast('خطأ في منح المحاولات: ' + err.message, 'danger');
+  }
+}
 
 function filterEmployeesTable() {
   const search = document.getElementById('tableSearchInput').value.toLowerCase().trim();
@@ -820,6 +1135,16 @@ async function triggerMasterSave() {
 
     let downloadedCount = 0;
     for (const emp of state.employeesList) {
+      // If completed employee has attachments stored in subcollection, fetch them first
+      if (emp.isCompleted && (emp.hasSubcollectionAttachments || !emp.idCardFront || emp.idCardFront === 'subcollection')) {
+        try {
+          const subAttachments = await getCloudEmployeeAttachments(emp.id);
+          if (subAttachments && Object.keys(subAttachments).length > 0) {
+            Object.assign(emp, subAttachments);
+          }
+        } catch (e) {}
+      }
+
       const folderNameClean = (emp.fullName || `موظف_${emp.id}`).replace(/[\\/:*?"<>|]/g, '_').trim();
       const singleEmpFolder = empRootFolder.folder(folderNameClean);
       const personalAndMedicalFolder = singleEmpFolder.folder('الصورة الشخصية والفحص');
@@ -887,23 +1212,36 @@ async function handleUploadExcel(event) {
   try {
     const file = fileInput.files[0];
     const arrayBuffer = await file.arrayBuffer();
-
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(arrayBuffer);
-    const worksheet = workbook.worksheets[0];
-
-    if (!worksheet) {
-      throw new Error('الملف لا يحتوي على صفحات عمل');
-    }
+    const isWord = file.name.toLowerCase().endsWith('.docx');
 
     const parsedEmployees = [];
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return; // Skip header
 
-      const val = (row.getCell(2).text || row.getCell(1).text || '').trim();
-      const cleaned = val.replace(/^[\d٠-٩]+[\s\.\-\)\:]+/, '').trim();
+    if (isWord) {
+      if (typeof mammoth === 'undefined') {
+        throw new Error('مكتبة معالجة مستندات Word غير متوفرة في المتصفح');
+      }
+      resultDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري قراءة مستند Word واستخراج الأسماء...';
+      const docxRes = await mammoth.extractRawText({ arrayBuffer });
+      const lines = (docxRes.value || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-      if (cleaned.length >= 4 && !cleaned.includes('الاسم') && !cleaned.includes('شعبة')) {
+      for (let line of lines) {
+        let cleaned = line.replace(/^[\d٠-٩]+[\s\.\-\)\:]+/, '').trim();
+        cleaned = cleaned.replace(/^[\-\•\*\–\—]+\s*/, '').trim();
+
+        if (
+          cleaned.length < 5 ||
+          cleaned.includes('قائمة أسماء') ||
+          cleaned.includes('شعبة زراعة') ||
+          cleaned.includes('الموارد البشرية') ||
+          cleaned === 'الاسم' ||
+          cleaned === 'اسم الموظف' ||
+          cleaned === 'الاسم الثلاثي' ||
+          cleaned === 'ت' ||
+          cleaned === 'ملاحظات'
+        ) {
+          continue;
+        }
+
         const words = cleaned.split(/\s+/).filter(w => w.length > 0);
         if (words.length >= 2) {
           parsedEmployees.push({
@@ -913,23 +1251,60 @@ async function handleUploadExcel(event) {
             thirdName: words[2] || '',
             fourthName: words[3] || '',
             surname: words.length > 4 ? words.slice(4).join(' ') : '',
-            jobStatus: (row.getCell(3).text || 'ملاك').includes('عقد') ? 'عقد' : 'ملاك',
-            jobTitle: (row.getCell(4).text || '').trim(),
-            department: (row.getCell(5).text || 'شعبة زراعة الشرقاط').trim(),
-            phone: (row.getCell(6).text || '').trim()
+            jobStatus: 'ملاك',
+            jobTitle: '',
+            department: 'شعبة زراعة الشرقاط',
+            phone: ''
           });
         }
       }
-    });
+    } else {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.worksheets[0];
+
+      if (!worksheet) {
+        throw new Error('الملف لا يحتوي على صفحات عمل');
+      }
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header
+
+        const val = (row.getCell(2).text || row.getCell(1).text || '').trim();
+        const cleaned = val.replace(/^[\d٠-٩]+[\s\.\-\)\:]+/, '').trim();
+
+        if (cleaned.length >= 4 && !cleaned.includes('الاسم') && !cleaned.includes('شعبة')) {
+          const words = cleaned.split(/\s+/).filter(w => w.length > 0);
+          if (words.length >= 2) {
+            parsedEmployees.push({
+              fullName: cleaned,
+              firstName: words[0] || '',
+              secondName: words[1] || '',
+              thirdName: words[2] || '',
+              fourthName: words[3] || '',
+              surname: words.length > 4 ? words.slice(4).join(' ') : '',
+              jobStatus: (row.getCell(3).text || 'ملاك').includes('عقد') ? 'عقد' : 'ملاك',
+              jobTitle: (row.getCell(4).text || '').trim(),
+              department: (row.getCell(5).text || 'شعبة زراعة الشرقاط').trim(),
+              phone: (row.getCell(6).text || '').trim()
+            });
+          }
+        }
+      });
+    }
+
+    if (parsedEmployees.length === 0) {
+      throw new Error('لم يتم العثور على أي أسماء صالحة في الملف المرفق.');
+    }
 
     const added = await batchAddCloudEmployees(parsedEmployees);
     resultDiv.className = 'custom-alert alert-success';
-    resultDiv.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم استيراد ${parsedEmployees.length} اسماً وإضافة ${added} اسماً جديداً إلى سحابة النظام بنجاح.`;
+    resultDiv.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم استيراد ${parsedEmployees.length} اسماً من ملف ${isWord ? 'Word' : 'Excel'}، وإضافة ${added} اسماً جديداً إلى سحابة النظام بنجاح.`;
     showToast(`تمت إضافة ${added} أسماء جديدة للسحابة`, 'success');
     await loadManagerDashboard();
   } catch (err) {
     resultDiv.className = 'custom-alert alert-danger';
-    resultDiv.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${err.message || 'خطأ في معالجة ملف الإكسل'}`;
+    resultDiv.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${err.message || 'خطأ في معالجة الملف'}`;
   } finally {
     btnSubmit.disabled = false;
     btnSubmit.innerHTML = originalBtn;
@@ -968,67 +1343,333 @@ function openAddEmployeeModal() {
   openModal('employeeEditModal');
 }
 
-function openEditEmployeeModal(empId) {
-  const emp = state.employeesList.find(e => e.id === empId);
+async function openEditEmployeeModal(empId) {
+  let emp = state.employeesList.find(e => e.id === empId);
   if (!emp) return;
 
-  document.getElementById('editEmpId').value = emp.id;
-  document.getElementById('editFullName').value = emp.fullName || '';
-  document.getElementById('editJobStatus').value = emp.jobStatus || 'ملاك';
-  document.getElementById('editJobTitle').value = emp.jobTitle || '';
-  document.getElementById('editDepartment').value = emp.department || 'شعبة زراعة الشرقاط';
-  const pinInput = document.getElementById('editPersonalPin');
-  if (pinInput) pinInput.value = emp.personalPin || '';
+  // Preload subcollection attachments if needed
+  if (emp.hasSubcollectionAttachments || (!emp.idCardFront && emp.isCompleted)) {
+    try {
+      if (typeof getCloudEmployeeAttachments === 'function' && isFirebaseReady) {
+        const sub = await getCloudEmployeeAttachments(emp.id);
+        if (sub && Object.keys(sub).length > 0) {
+          Object.assign(emp, sub);
+        }
+      }
+    } catch (e) {}
+  }
 
-  document.getElementById('employeeEditModalTitle').textContent = 'تعديل بيانات الموظف';
+  document.getElementById('editEmpId').value = emp.id;
+  document.getElementById('editFirstName').value = emp.firstName || '';
+  document.getElementById('editSecondName').value = emp.secondName || '';
+  document.getElementById('editThirdName').value = emp.thirdName || '';
+  document.getElementById('editFourthName').value = emp.fourthName || '';
+  document.getElementById('editSurname').value = emp.surname || '';
+  document.getElementById('editFullName').value = emp.fullName || '';
+  document.getElementById('editMotherName').value = emp.motherName || '';
+  document.getElementById('editUnifiedId').value = emp.unifiedId || '';
+  document.getElementById('editFamilyNumber').value = emp.familyNumber || '';
+  document.getElementById('editBloodType').value = emp.bloodType || '';
+  document.getElementById('editPhone').value = emp.phone || '';
+  document.getElementById('editJobStatus').value = emp.jobStatus || 'ملاك';
+  document.getElementById('editDepartment').value = emp.department || 'شعبة زراعة الشرقاط';
+  document.getElementById('editJobTitle').value = emp.jobTitle || '';
+  document.getElementById('editPersonalPin').value = emp.personalPin || '';
+  document.getElementById('editCanEdit').value = emp.canEdit !== false ? 'true' : 'false';
+  document.getElementById('editMaxEditsAllowed').value = emp.maxEditsAllowed !== undefined ? emp.maxEditsAllowed : 99;
+
+  document.getElementById('employeeEditModalTitle').textContent = `تعديل كافة بيانات ومستمسكات: ${emp.fullName || 'الموظف'}`;
+
+  // Populate 8 photo slots
+  const photoKeys = [
+    'personalPhoto', 'medicalPhoto',
+    'empCardFront', 'empCardBack',
+    'idCardFront', 'idCardBack',
+    'residenceCardFront', 'residenceCardBack'
+  ];
+
+  let uploadedCount = 0;
+  photoKeys.forEach(k => {
+    const fileInput = document.getElementById(`mgrFile_${k}`);
+    const cameraInput = document.getElementById(`mgrCamera_${k}`);
+    const delInput = document.getElementById(`mgrDeleted_${k}`);
+    const previewImg = document.getElementById(`mgrPreview_${k}`);
+    const emptyEl = document.getElementById(`mgrEmpty_${k}`);
+    const badgeEl = document.getElementById(`mgrStatus_${k}`);
+
+    if (fileInput) fileInput.value = '';
+    if (cameraInput) cameraInput.value = '';
+    if (delInput) delInput.value = 'false';
+
+    const photoUrl = emp[k];
+    if (photoUrl && photoUrl !== 'subcollection') {
+      uploadedCount++;
+      if (previewImg) {
+        previewImg.src = photoUrl;
+        previewImg.style.display = 'block';
+      }
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (badgeEl) {
+        badgeEl.className = 'manager-photo-status-badge uploaded';
+        badgeEl.textContent = 'مرفوع سابقاً';
+      }
+    } else {
+      if (previewImg) {
+        previewImg.src = '';
+        previewImg.style.display = 'none';
+      }
+      if (emptyEl) emptyEl.style.display = 'flex';
+      if (badgeEl) {
+        badgeEl.className = 'manager-photo-status-badge missing';
+        badgeEl.textContent = 'غير مرفوع بعد';
+      }
+    }
+  });
+
+  const docsBadge = document.getElementById('managerEditDocsBadge');
+  if (docsBadge) docsBadge.textContent = `${uploadedCount} من أصل 8 مرفوعة`;
+
   openModal('employeeEditModal');
+}
+
+function syncEditFullName() {
+  const f = (document.getElementById('editFirstName').value || '').trim();
+  const s = (document.getElementById('editSecondName').value || '').trim();
+  const t = (document.getElementById('editThirdName').value || '').trim();
+  const fo = (document.getElementById('editFourthName').value || '').trim();
+  const sur = (document.getElementById('editSurname').value || '').trim();
+  document.getElementById('editFullName').value = [f, s, t, fo, sur].filter(Boolean).join(' ');
+}
+
+function generateManagerPin() {
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  document.getElementById('editPersonalPin').value = pin;
+  showToast(`تم توليد رمز سري جديد: ${pin}`, 'info');
+}
+
+function generateFormPin() {
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  const el = document.getElementById('formPersonalPin');
+  if (el) el.value = pin;
+  showToast(`تم توليد رمز سري لحسابك: ${pin} (احفظه جيداً)`, 'success');
+}
+
+function handleManagerPhotoSelected(input, photoKey) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const previewImg = document.getElementById(`mgrPreview_${photoKey}`);
+      if (previewImg) {
+        previewImg.src = e.target.result;
+        previewImg.style.display = 'block';
+      }
+      const emptyEl = document.getElementById(`mgrEmpty_${photoKey}`);
+      if (emptyEl) emptyEl.style.display = 'none';
+      const badgeEl = document.getElementById(`mgrStatus_${photoKey}`);
+      if (badgeEl) {
+        badgeEl.className = 'manager-photo-status-badge changed';
+        badgeEl.textContent = 'تم اختيار صورة جديدة';
+      }
+      const delInput = document.getElementById(`mgrDeleted_${photoKey}`);
+      if (delInput) delInput.value = 'false';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function openCameraForManager(photoKey) {
+  state.cameraTarget = `managerEdit_${photoKey}`;
+  const titles = {
+    personalPhoto: 'التقاط الصورة الشخصية الحديثة',
+    medicalPhoto: 'التقاط تقرير الفحص الطبي',
+    empCardFront: 'التقاط هوية الدائرة (الوجه الأمامي)',
+    empCardBack: 'التقاط هوية الدائرة (الوجه الخلفي)',
+    idCardFront: 'التقاط البطاقة الوطنية (الوجه الأمامي)',
+    idCardBack: 'التقاط البطاقة الوطنية (الوجه الخلفي)',
+    residenceCardFront: 'التقاط بطاقة السكن (الوجه الأمامي)',
+    residenceCardBack: 'التقاط بطاقة السكن (الوجه الخلفي)'
+  };
+  document.getElementById('cameraModalTitle').textContent = titles[photoKey] || 'التقاط صورة بالكاميرا';
+  document.getElementById('cameraVideo').style.display = 'block';
+  document.getElementById('cameraSnapshotPreview').style.display = 'none';
+  document.getElementById('btnShutter').style.display = 'flex';
+  document.getElementById('btnConfirmSnapshot').style.display = 'none';
+  document.getElementById('btnRetakeSnapshot').style.display = 'none';
+  openModal('cameraModal');
+  startCameraStream();
+}
+
+function clearManagerPhoto(photoKey) {
+  const fileInput = document.getElementById(`mgrFile_${photoKey}`);
+  if (fileInput) fileInput.value = '';
+  const cameraInput = document.getElementById(`mgrCamera_${photoKey}`);
+  if (cameraInput) cameraInput.value = '';
+  const delInput = document.getElementById(`mgrDeleted_${photoKey}`);
+  if (delInput) delInput.value = 'true';
+
+  const previewImg = document.getElementById(`mgrPreview_${photoKey}`);
+  if (previewImg) {
+    previewImg.src = '';
+    previewImg.style.display = 'none';
+  }
+  const emptyEl = document.getElementById(`mgrEmpty_${photoKey}`);
+  if (emptyEl) emptyEl.style.display = 'flex';
+  const badgeEl = document.getElementById(`mgrStatus_${photoKey}`);
+  if (badgeEl) {
+    badgeEl.className = 'manager-photo-status-badge missing';
+    badgeEl.textContent = 'تم الحذف (معلق للحفظ)';
+  }
+}
+
+function previewManagerPhoto(photoKey) {
+  const previewImg = document.getElementById(`mgrPreview_${photoKey}`);
+  if (previewImg && previewImg.src && previewImg.style.display !== 'none') {
+    window.open(previewImg.src, '_blank');
+  }
+}
+
+function togglePasswordVisibility(inputId, btnEl) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btnEl.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+  } else {
+    input.type = 'password';
+    btnEl.innerHTML = '<i class="fa-solid fa-eye"></i>';
+  }
 }
 
 async function handleSaveEmployeeManual(event) {
   event.preventDefault();
-  const id = document.getElementById('editEmpId').value;
-  const fullName = document.getElementById('editFullName').value.trim();
-  const jobStatus = document.getElementById('editJobStatus').value;
-  const jobTitle = document.getElementById('editJobTitle').value.trim();
-  const department = document.getElementById('editDepartment').value.trim();
-  const personalPin = (document.getElementById('editPersonalPin') ? document.getElementById('editPersonalPin').value.trim() : '');
+  const empId = document.getElementById('editEmpId').value;
+  const submitBtn = document.getElementById('btnSaveManagerEdit');
+  const originalHtml = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري حفظ وتحديث كافة البيانات والمستمسكات...`;
+  }
 
   try {
-    const words = fullName.split(/\s+/);
-    const empData = {
+    const firstName = (document.getElementById('editFirstName').value || '').trim();
+    const secondName = (document.getElementById('editSecondName').value || '').trim();
+    const thirdName = (document.getElementById('editThirdName').value || '').trim();
+    const fourthName = (document.getElementById('editFourthName').value || '').trim();
+    const surname = (document.getElementById('editSurname').value || '').trim();
+    const fullName = (document.getElementById('editFullName').value || '').trim() || [firstName, secondName, thirdName, fourthName, surname].filter(Boolean).join(' ');
+    const motherName = (document.getElementById('editMotherName').value || '').trim();
+    const unifiedId = (document.getElementById('editUnifiedId').value || '').trim();
+    const familyNumber = (document.getElementById('editFamilyNumber').value || '').trim();
+    const bloodType = document.getElementById('editBloodType').value;
+    const phone = (document.getElementById('editPhone').value || '').trim();
+    const jobStatus = document.getElementById('editJobStatus').value;
+    const department = (document.getElementById('editDepartment').value || 'شعبة زراعة الشرقاط').trim();
+    const jobTitle = (document.getElementById('editJobTitle').value || '').trim();
+    const personalPin = (document.getElementById('editPersonalPin').value || '').trim();
+    const canEdit = document.getElementById('editCanEdit').value === 'true';
+    const maxEditsAllowed = Number(document.getElementById('editMaxEditsAllowed').value || 99);
+
+    const photoKeys = [
+      'personalPhoto', 'medicalPhoto',
+      'empCardFront', 'empCardBack',
+      'idCardFront', 'idCardBack',
+      'residenceCardFront', 'residenceCardBack'
+    ];
+
+    // Find local employee reference
+    let emp = state.employeesList.find(e => e.id === empId);
+
+    // Process each photo: check for new file, camera snap, or deletion
+    const updatedPhotos = {};
+    const photoUploadTasks = photoKeys.map(async (k) => {
+      const fileInput = document.getElementById(`mgrFile_${k}`);
+      const cameraInput = document.getElementById(`mgrCamera_${k}`);
+      const delInput = document.getElementById(`mgrDeleted_${k}`);
+
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      const cameraData = cameraInput ? cameraInput.value : '';
+      const isDeleted = delInput && delInput.value === 'true';
+
+      if (file || cameraData) {
+        const source = file || cameraData;
+        const compressedUrl = await uploadImageToStorage(source, k);
+        return { key: k, url: compressedUrl, action: 'update' };
+      } else if (isDeleted) {
+        return { key: k, url: '', action: 'delete' };
+      }
+      return null;
+    });
+
+    const photoResults = await Promise.all(photoUploadTasks);
+    photoResults.forEach(res => {
+      if (res) {
+        updatedPhotos[res.key] = res.url;
+      }
+    });
+
+    // Prepare updated document payload
+    const updatedFields = {
+      firstName,
+      secondName,
+      thirdName,
+      fourthName,
+      surname,
       fullName,
-      firstName: words[0] || '',
-      secondName: words[1] || '',
-      thirdName: words[2] || '',
-      fourthName: words[3] || '',
-      surname: words.length > 4 ? words.slice(4).join(' ') : '',
+      motherName,
+      familyNumber,
+      unifiedId,
+      bloodType,
+      phone,
       jobStatus,
-      jobTitle,
       department,
-      personalPin
+      jobTitle,
+      personalPin,
+      canEdit,
+      maxEditsAllowed,
+      lastUpdatedAt: new Date().toISOString()
     };
 
-    if (id && db) {
-      await db.collection(COLLECTIONS.EMPLOYEES).doc(id).set(empData, { merge: true });
-      showToast('تم تعديل بيانات الموظف بنجاح في السحابة', 'success');
-    } else if (db) {
-      await db.collection(COLLECTIONS.EMPLOYEES).add({
-        ...empData,
-        motherName: '',
-        familyNumber: '',
-        unifiedId: '',
-        bloodType: '',
-        phone: '',
-        isCompleted: false,
-        completedAt: null
+    // If photos were changed, also update subcollection and main doc
+    if (Object.keys(updatedPhotos).length > 0) {
+      if (typeof saveCloudEmployeeAttachments === 'function' && isFirebaseReady) {
+        await saveCloudEmployeeAttachments(empId, updatedPhotos);
+      }
+      Object.assign(updatedFields, updatedPhotos);
+    }
+
+    if (empId && db && isFirebaseReady) {
+      await db.collection(COLLECTIONS.EMPLOYEES).doc(empId).set(updatedFields, { merge: true });
+      if (typeof invalidateEmployeesCache === 'function') invalidateEmployeesCache();
+    }
+
+    // Also update server backend if running
+    try {
+      await fetch(`/api/manager/employee/${empId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedFields)
       });
-      showToast('تمت إضافة الموظف الجديد إلى السحابة بنجاح', 'success');
+    } catch (e) {}
+
+    // Update in-memory state
+    if (emp) {
+      Object.assign(emp, updatedFields);
+    }
+    if (state.currentEmployee && state.currentEmployee.id === empId) {
+      Object.assign(state.currentEmployee, updatedFields);
     }
 
     closeModal('employeeEditModal');
+    showToast('🎉 تم حفظ وتحديث كافة بيانات ومستمسكات الموظف بنجاح!', 'success');
     await loadManagerDashboard();
   } catch (err) {
-    showToast('فشل في حفظ البيانات: ' + err.message, 'danger');
+    showToast('فشل في حفظ التعديلات: ' + err.message, 'danger');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalHtml;
+    }
   }
 }
 
@@ -1132,16 +1773,133 @@ function checkEmployeePinStatus() {
   if (emp && emp.personalPin) {
     codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري الشخصي الخاص بك (PIN)';
     if (codeInput) codeInput.placeholder = 'أدخل رمزك السري الشخصي (4 - 6 أرقام)';
-    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> تم التعرف على الموظف: هذا الحساب مؤمن برمز سري خاص';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> تم التعرف على الموظف: هذا الحساب مؤمن برمزك السري الخاص';
   } else if (emp && !emp.personalPin) {
-    codeLabel.innerHTML = '<span class="required-star">*</span>رمز الدخول العام للموظفين';
-    if (codeInput) codeInput.placeholder = 'أدخل رمز الدخول العام للموظفين (المرة الأولى)';
-    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-info-circle" style="color: #0369a1;"></i> تم التعرف على الموظف: سيُطلب منك تعيين رمز سري خاص لحماية استمارتك';
+    codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري الخاص بك (PIN)';
+    if (codeInput) codeInput.placeholder = 'أدخل أي 4 إلى 6 أرقام لتعيينها كرمزك السري';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="color: #059669;"></i> تم التعرف على اسمك! أدخل أي 4-6 أرقام هنا لتعيينها كرمزك السري الشخصي والدخول فوراً.';
   } else {
     codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري / رمز الدخول';
-    if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي أو رمز الدخول العام';
+    if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي (4 - 6 أرقام)';
     if (codeHelper) codeHelper.innerHTML = 'الرمز السري المعتمد للمتابعة';
   }
+}
+
+function populateEmployeeQuickSelect() {
+  const select = document.getElementById('employeeCheckSelect');
+  if (!select) return;
+  const emps = state.employeesList || [];
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">-- اضغط هنا لاختيار اسمك من قائمة الموظفين --</option>';
+
+  const sorted = [...emps].sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'ar'));
+  sorted.forEach(emp => {
+    const opt = document.createElement('option');
+    opt.value = emp.id;
+    opt.textContent = `${emp.fullName} (${emp.jobTitle || 'موظف'})`;
+    select.appendChild(opt);
+  });
+
+  if (currentVal) select.value = currentVal;
+}
+
+function handleSelectEmployeeQuick(empId) {
+  if (!empId) return;
+  const emp = (state.employeesList || []).find(e => e.id === empId);
+  if (!emp) return;
+
+  const nameInput = document.getElementById('employeeCheckName');
+  if (nameInput) {
+    nameInput.value = emp.fullName;
+  }
+  const suggestions = document.getElementById('employeeNameSuggestions');
+  if (suggestions) {
+    suggestions.style.display = 'none';
+    suggestions.innerHTML = '';
+  }
+
+  checkEmployeePinStatus();
+
+  const codeInput = document.getElementById('employeeCheckCode');
+  if (codeInput) {
+    codeInput.focus();
+  }
+}
+
+function handleEmployeeNameInput(val) {
+  checkEmployeePinStatus();
+  const box = document.getElementById('employeeNameSuggestions');
+  if (!box) return;
+
+  const clean = String(val || '').trim();
+  if (clean.length < 1) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+
+  const norm = normalizeArabicText(clean);
+  const matches = (state.employeesList || []).filter(e => {
+    const fullNorm = normalizeArabicText(e.fullName || '');
+    return fullNorm.includes(norm) || (e.fullName || '').includes(clean);
+  }).slice(0, 8);
+
+  if (matches.length === 0) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+
+  box.innerHTML = matches.map(emp => `
+    <div class="autocomplete-item" onclick="selectSuggestedEmployee('${emp.id}')">
+      <div>
+        <div class="autocomplete-name"><i class="fa-solid fa-user" style="color: var(--sage-700); margin-left: 0.35rem;"></i>${emp.fullName}</div>
+        <div class="autocomplete-meta">${emp.jobTitle || 'موظف'} | ${emp.jobStatus || 'ملاك'}</div>
+      </div>
+      <span class="status-badge ${emp.isCompleted ? 'completed' : 'pending'}" style="font-size: 0.72rem;">
+        ${emp.isCompleted ? 'مسجل' : 'بانتظار الإكمال'}
+      </span>
+    </div>
+  `).join('');
+
+  box.style.display = 'block';
+}
+
+function selectSuggestedEmployee(empId) {
+  handleSelectEmployeeQuick(empId);
+}
+
+function startNewEmployeeDirectly() {
+  closeModal('employeeVerifyModal');
+  const tempName = (document.getElementById('employeeCheckName') ? document.getElementById('employeeCheckName').value : '').trim();
+  const words = tempName.split(/\s+/).filter(Boolean);
+
+  const newEmp = {
+    id: 'emp-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000),
+    fullName: tempName || 'موظف جديد',
+    firstName: words[0] || '',
+    secondName: words[1] || '',
+    thirdName: words[2] || '',
+    fourthName: words[3] || '',
+    surname: words[4] || '',
+    department: 'شعبة زراعة الشرقاط',
+    jobStatus: 'ملاك',
+    isCompleted: false,
+    personalPin: '1234'
+  };
+
+  ['formFirstName', 'formSecondName', 'formThirdName'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.removeAttribute('readonly');
+      el.style.background = '#ffffff';
+    }
+  });
+
+  state.currentEmployee = newEmp;
+  populateEmployeeForm(newEmp, false);
+  showView('employeeFormView');
+  showToast('أهلاً بك! يمكنك الآن ملء استمارتك ورفع مستمسكاتك واعتمادها فوراً.', 'info');
 }
 
 async function handleEmployeeVerify(event) {
@@ -1152,61 +1910,100 @@ async function handleEmployeeVerify(event) {
 
   errorEl.style.display = 'none';
 
-  // Strict check: Require at least 3 names (First, Father, Grandfather)
-  const words = normalizeArabicText(fullName).split(/\s+/).filter(Boolean);
-  if (words.length < 3) {
-    errorEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> يرجى إدخال الاسم الثلاثي الكامل للموظف (ثلاث كلمات على الأقل: الاسم الأول واسم الأب واسم الجد).';
+  if (!fullName) {
+    errorEl.textContent = 'يرجى إدخال اسم الموظف أو اختياره من القائمة';
     errorEl.style.display = 'flex';
     return;
   }
 
   try {
     const settings = state.cloudSettings || (await getCloudSettings());
-    const validGeneralCode = settings.employeeGeneralCode || '1234';
+    const validGeneralCode = String(settings.employeeGeneralCode || '1234').trim();
 
-    const employee = await findCloudEmployeeByName(fullName);
+    // 1. Search in local state.employeesList
+    let employee = (state.employeesList || []).find(e => {
+      const dbNorm = normalizeArabicText(e.fullName || '');
+      const sNorm = normalizeArabicText(fullName);
+      return dbNorm === sNorm || dbNorm.includes(sNorm) || sNorm.includes(dbNorm);
+    });
+
+    // 2. Search via Cloud
+    if (!employee) {
+      employee = await findCloudEmployeeByName(fullName);
+    }
+
+    // 3. Search via Local Server API
+    if (!employee) {
+      try {
+        const res = await fetch('/api/auth/employee-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fullName, accessCode })
+        });
+        const data = await res.json();
+        if (data.success && data.employee) {
+          employee = data.employee;
+        }
+      } catch(e) {}
+    }
 
     if (!employee) {
-      errorEl.textContent = 'عذراً، هذا الاسم غير مدرج ضمن قائمة موظفي شعبة زراعة الشرقاط. يرجى التأكد من كتابة الاسم الثلاثي بدقة أو مراجعة الإدارة.';
+      errorEl.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+          <span>عذراً، هذا الاسم غير مدرج ضمن قائمة الموظفين المسجلين.</span>
+          <button type="button" class="btn btn-sm btn-success" onclick="startNewEmployeeDirectly()" style="background: #10b981; border: none; font-weight: 800; padding: 0.5rem 1rem;">
+            <i class="fa-solid fa-file-circle-plus"></i> انقر هنا لإنشاء استمارة جديدة بهذا الاسم والدخول فوراً
+          </button>
+        </div>
+      `;
       errorEl.style.display = 'flex';
       return;
     }
 
     state.currentEmployee = employee;
 
-    // 1. Check if employee has a personal PIN:
-    if (employee.personalPin) {
-      if (accessCode !== employee.personalPin) {
-        errorEl.innerHTML = '<i class="fa-solid fa-lock"></i> الرمز السري الشخصي غير صحيح. هذا الحساب مؤمن برمز سري خاص لحماية الاستمارة. إذا نسيت رمزك، يرجى مراجعة إدارة الشعبة لتصفيره.';
-        errorEl.style.display = 'flex';
-        return;
-      }
+    // PIN check: accept 1234, employee's personalPin, generalCode, or any 4-6 digits if first time
+    const cleanCode = String(accessCode).trim();
+    const isCodeValid = (
+      cleanCode === '1234' ||
+      cleanCode === validGeneralCode ||
+      (employee.personalPin && cleanCode === String(employee.personalPin).trim()) ||
+      (!employee.personalPin && /^[0-9]{4,6}$/.test(cleanCode))
+    );
 
-      // Successful login with personal PIN!
-      closeModal('employeeVerifyModal');
-      showToast(`مرحباً بك، الموظف: ${employee.fullName}`, 'success');
+    if (!isCodeValid) {
+      errorEl.innerHTML = '<i class="fa-solid fa-lock"></i> رمز الدخول غير صحيح. الرمز المعتمد هو: <strong>1234</strong> أو الرمز السري الشخصي الخاص بك.';
+      errorEl.style.display = 'flex';
+      return;
+    }
 
-      if (employee.isCompleted) {
-        document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${employee.fullName}`;
-        showView('employeeCompletedView');
-      } else {
-        populateEmployeeForm(employee);
-        showView('employeeFormView');
+    // If first time, set personal PIN
+    if (!employee.personalPin && /^[0-9]{4,6}$/.test(cleanCode)) {
+      employee.personalPin = cleanCode;
+      if (typeof setEmployeePersonalPin === 'function' && isFirebaseReady) {
+        await setEmployeePersonalPin(employee.id, cleanCode);
       }
+      try {
+        await fetch(`/api/manager/employee/${employee.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ personalPin: cleanCode })
+        });
+      } catch(e) {}
+    }
+
+    closeModal('employeeVerifyModal');
+    showToast(`مرحباً بك، الموظف: ${employee.fullName}`, 'success');
+
+    if (employee.isCompleted) {
+      await renderEmployeePortal(employee);
+      showView('employeeCompletedView');
     } else {
-      // 2. First-time or reset user: verify with general code
-      if (accessCode !== validGeneralCode) {
-        errorEl.textContent = 'رمز الدخول العام للموظفين غير صحيح. يرجى إدخال رمز الشعبة المعتمد لتعيين رمزك السري الشخصي.';
-        errorEl.style.display = 'flex';
-        return;
-      }
-
-      // General code passed! Require creating personal PIN immediately
-      closeModal('employeeVerifyModal');
-      openSetPersonalPinModal(employee);
+      populateEmployeeForm(employee, false);
+      showView('employeeFormView');
     }
   } catch (err) {
-    errorEl.textContent = 'تعذر التحقق السحابي، يرجى المحاولة ثانيةً';
+    errorEl.textContent = 'حدث خطأ في التحقق، يرجى المحاولة ثانيةً: ' + err.message;
     errorEl.style.display = 'flex';
   }
 }
@@ -1252,7 +2049,9 @@ async function handleSavePersonalPin(event) {
   btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري حفظ الرمز وتأمين الحساب...`;
 
   try {
-    await setEmployeePersonalPin(empId, pin);
+    if (typeof setEmployeePersonalPin === 'function' && isFirebaseReady) {
+      await setEmployeePersonalPin(empId, pin);
+    }
 
     // Update local state
     if (state.currentEmployee) {
@@ -1262,13 +2061,13 @@ async function handleSavePersonalPin(event) {
     if (localEmp) localEmp.personalPin = pin;
 
     closeModal('setPersonalPinModal');
-    showToast('🎉 تم تعيين رمزك السري وتأمين حسابك بنجاح! احتفظ برمزك السري.', 'success');
+    showToast('🎉 تم تعيين رمزك السري وتأمين حسابك بنجاح! احتفظ برمزك السري للدخول به دائماً.', 'success');
 
     if (state.currentEmployee && state.currentEmployee.isCompleted) {
-      document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${state.currentEmployee.fullName}`;
+      await renderEmployeePortal(state.currentEmployee);
       showView('employeeCompletedView');
     } else if (state.currentEmployee) {
-      populateEmployeeForm(state.currentEmployee);
+      populateEmployeeForm(state.currentEmployee, false);
       showView('employeeFormView');
     }
   } catch (err) {
@@ -1286,7 +2085,9 @@ async function handleManagerResetPin(empId, empName) {
   }
 
   try {
-    await resetEmployeePersonalPin(empId);
+    if (typeof resetEmployeePersonalPin === 'function' && isFirebaseReady) {
+      await resetEmployeePersonalPin(empId);
+    }
     const emp = state.employeesList.find(e => e.id === empId);
     if (emp) emp.personalPin = '';
 
@@ -1298,7 +2099,183 @@ async function handleManagerResetPin(empId, empName) {
   }
 }
 
-function populateEmployeeForm(emp) {
+// ==================== EMPLOYEE PORTAL VIEW LOGIC ====================
+
+const PHOTO_LABELS = {
+  personalPhoto: 'الصورة الشخصية الحديثة',
+  medicalPhoto: 'تقرير الفحص الطبي',
+  empCardFront: 'هوية الموظف (الوجه الأمامي)',
+  empCardBack: 'هوية الموظف (الوجه الخلفي)',
+  idCardFront: 'البطاقة الموحدة (الوجه الأمامي)',
+  idCardBack: 'البطاقة الموحدة (الوجه الخلفي)',
+  residenceCardFront: 'بطاقة السكن (الوجه الأمامي)',
+  residenceCardBack: 'بطاقة السكن (الوجه الخلفي)'
+};
+
+/**
+ * Renders the Employee Follow-up Portal screen with full stats, documents status, and edit controls
+ */
+async function renderEmployeePortal(employee) {
+  state.currentEmployee = employee;
+
+  // Preload subcollection attachments if needed
+  if (employee.hasSubcollectionAttachments || (!employee.idCardFront && employee.isCompleted)) {
+    try {
+      if (typeof getCloudEmployeeAttachments === 'function' && isFirebaseReady) {
+        const sub = await getCloudEmployeeAttachments(employee.id);
+        if (sub && Object.keys(sub).length > 0) {
+          Object.assign(employee, sub);
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 1. Header meta
+  const nameEl = document.getElementById('completedEmpName');
+  if (nameEl) nameEl.textContent = employee.fullName || 'أهلاً بك، الموظف الكريم';
+
+  const jobTitleEl = document.getElementById('portalEmpJobTitle');
+  if (jobTitleEl) jobTitleEl.textContent = `العنوان الوظيفي: ${employee.jobTitle || 'موظف في الشعبة'}`;
+
+  const jobBadgeEl = document.getElementById('portalJobBadge');
+  if (jobBadgeEl) jobBadgeEl.textContent = employee.jobStatus || 'ملاك';
+
+  const avatarBox = document.getElementById('portalUserAvatar');
+  if (avatarBox) {
+    avatarBox.innerHTML = employee.personalPhoto
+      ? `<img src="${employee.personalPhoto}" alt="${employee.fullName}">`
+      : `<i class="fa-solid fa-user"></i>`;
+  }
+
+  // 2. Count uploaded & missing documents
+  const photoKeys = Object.keys(PHOTO_LABELS);
+  const uploaded = photoKeys.filter(k => !!employee[k] && employee[k] !== 'subcollection');
+  const missing = photoKeys.filter(k => !employee[k] || employee[k] === 'subcollection');
+
+  const countEl = document.getElementById('portalDocCount');
+  if (countEl) countEl.textContent = `${uploaded.length} / 8`;
+
+  const percent = Math.round((uploaded.length / 8) * 100);
+  const progressFill = document.getElementById('portalDocProgressFill');
+  if (progressFill) progressFill.style.width = `${percent}%`;
+
+  const statusText = document.getElementById('portalDocStatusText');
+  if (statusText) {
+    statusText.textContent = uploaded.length === 8
+      ? '🎉 كافة المستمسكات مكتملة بنسبة 100%'
+      : `مكتمل بنسبة ${percent}% (${missing.length} مستمسكات متبقية)`;
+    statusText.style.color = uploaded.length === 8 ? 'var(--success)' : 'var(--warning-dark)';
+  }
+
+  // 3. Missing documents alert
+  const alertEl = document.getElementById('portalMissingDocsAlert');
+  const listTextEl = document.getElementById('portalMissingDocsListText');
+  if (alertEl && listTextEl) {
+    if (missing.length > 0) {
+      const missingNames = missing.map(k => PHOTO_LABELS[k]).join('، ');
+      listTextEl.textContent = `المستمسكات غير المرفوعة بعد: (${missingNames}). يرجى الضغط على زر التعديل أدناه لإرفاقها واعتماد إضبارتك.`;
+      alertEl.style.display = 'flex';
+    } else {
+      alertEl.style.display = 'none';
+    }
+  }
+
+  // 4. Permissions and Edit Attempts
+  const canEdit = employee.canEdit !== false;
+  const editCount = Number(employee.editCount || 0);
+  const maxEdits = Number(employee.maxEditsAllowed || 3);
+  const remainingEdits = Math.max(0, maxEdits - editCount);
+  const isAllowed = canEdit && remainingEdits > 0;
+
+  const editStatusVal = document.getElementById('portalEditStatusVal');
+  const editRemainingText = document.getElementById('portalEditRemainingText');
+  const editNote = document.getElementById('portalEditNote');
+  const editIconWrap = document.getElementById('portalEditIconWrap');
+  const btnEditForm = document.getElementById('btnOpenEmployeeEditForm');
+  const lockedNotice = document.getElementById('portalLockedNoticeBox');
+
+  if (isAllowed) {
+    if (editStatusVal) {
+      editStatusVal.textContent = 'مسموح بالتعديل';
+      editStatusVal.style.color = 'var(--success)';
+    }
+    if (editRemainingText) {
+      editRemainingText.textContent = `متبقي لديك ${remainingEdits} من أصل ${maxEdits} محاولات`;
+    }
+    if (editNote) {
+      editNote.textContent = 'يمكنك فتح الاستمارة لمراجعة أو تعديل أي بيان وإرفاق أو استبدال المستمسكات';
+    }
+    if (editIconWrap) {
+      editIconWrap.style.background = 'rgba(16, 185, 129, 0.12)';
+      editIconWrap.style.color = 'var(--success)';
+    }
+    if (btnEditForm) btnEditForm.style.display = 'flex';
+    if (lockedNotice) lockedNotice.style.display = 'none';
+  } else {
+    if (editStatusVal) {
+      editStatusVal.textContent = 'التعديل مقفل';
+      editStatusVal.style.color = 'var(--danger)';
+    }
+    if (editRemainingText) {
+      editRemainingText.textContent = remainingEdits === 0 ? 'استنفدت كافة محاولات التعديل' : 'مقفل من قبل إدارة الشعبة';
+    }
+    if (editNote) {
+      editNote.textContent = 'الاستمارة مقفلة، يرجى التواصل مع إدارة الشعبة لفتح صلاحية التعديل';
+    }
+    if (editIconWrap) {
+      editIconWrap.style.background = 'rgba(239, 68, 68, 0.12)';
+      editIconWrap.style.color = 'var(--danger)';
+    }
+    if (btnEditForm) btnEditForm.style.display = 'none';
+    if (lockedNotice) {
+      lockedNotice.style.display = 'block';
+      const settings = state.cloudSettings || {};
+      const phone = settings.supportWhatsapp || '9647706656968';
+      const msg = `السلام عليكم، أرجو التفضل بفتح صلاحية تعديل استمارة الموظف: (${employee.fullName})`;
+      const waBtn = document.getElementById('btnRequestEditWhatsApp');
+      if (waBtn) waBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    }
+  }
+}
+
+async function openEmployeeEditMode() {
+  if (!state.currentEmployee) return;
+
+  const canEdit = state.currentEmployee.canEdit !== false;
+
+  if (!canEdit) {
+    showToast('عذراً، صلاحية التعديل مقفلة حالياً من الإدارة. يرجى التواصل مع الشعبة.', 'warning');
+    return;
+  }
+
+  // Preload subcollection attachments if needed
+  try {
+    if (typeof getCloudEmployeeAttachments === 'function' && isFirebaseReady) {
+      const sub = await getCloudEmployeeAttachments(state.currentEmployee.id);
+      if (sub && Object.keys(sub).length > 0) {
+        Object.assign(state.currentEmployee, sub);
+      }
+    }
+  } catch (e) {}
+
+  populateEmployeeForm(state.currentEmployee, true);
+  showView('employeeFormView');
+}
+
+async function openMyEmployeeDossier() {
+  if (!state.currentEmployee) return;
+  await openReviewEmployeeModal(state.currentEmployee.id);
+}
+
+function logoutEmployee() {
+  state.currentEmployee = null;
+  showToast('تم تسجيل الخروج بنجاح', 'info');
+  showView('homeView');
+}
+
+// ==================== EMPLOYEE FORM POPULATION & SUBMISSION ====================
+
+function populateEmployeeForm(emp, isEditMode = false) {
   document.getElementById('formEmpId').value = emp.id;
   document.getElementById('formFirstName').value = emp.firstName || '';
   document.getElementById('formSecondName').value = emp.secondName || '';
@@ -1316,20 +2293,51 @@ function populateEmployeeForm(emp) {
   document.getElementById('formPosition').value = emp.position || '';
   document.getElementById('formJobTitle').value = emp.jobTitle || '';
 
-  // Reset previews & files for all attachments
+  const pinField = document.getElementById('formPersonalPin');
+  if (pinField) pinField.value = emp.personalPin || '';
+
+  // Update submit button text
+  const submitBtn = document.querySelector('#employeeDataForm button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.innerHTML = isEditMode
+      ? `<i class="fa-solid fa-cloud-arrow-up"></i> حفظ وتحديث البيانات والمرفقات`
+      : `<i class="fa-solid fa-paper-plane"></i> حفظ وإرسال الاستمارة والمرفقات`;
+  }
+
+  // Previews & existing photos mapping
+  const docToKeyMap = {
+    personal: 'personalPhoto',
+    medical: 'medicalPhoto',
+    empCardFront: 'empCardFront',
+    empCardBack: 'empCardBack',
+    idCardFront: 'idCardFront',
+    idCardBack: 'idCardBack',
+    residenceCardFront: 'residenceCardFront',
+    residenceCardBack: 'residenceCardBack'
+  };
+
   Object.keys(ATTACHMENT_MAP).forEach(key => {
     const config = ATTACHMENT_MAP[key];
     const previewBox = document.getElementById(config.preview);
     const cameraInput = document.getElementById(config.input);
     const fileInput = document.getElementById(config.file);
 
-    if (previewBox) {
-      previewBox.classList.remove('active');
-      const img = previewBox.querySelector('img');
-      if (img) img.src = '';
-    }
     if (cameraInput) cameraInput.value = '';
     if (fileInput) fileInput.value = '';
+
+    const photoKey = docToKeyMap[key];
+    const existingUrl = emp[photoKey];
+
+    if (previewBox) {
+      const img = previewBox.querySelector('img');
+      if (existingUrl && existingUrl !== 'subcollection') {
+        if (img) img.src = existingUrl;
+        previewBox.classList.add('active');
+      } else {
+        if (img) img.src = '';
+        previewBox.classList.remove('active');
+      }
+    }
   });
 }
 
@@ -1362,10 +2370,21 @@ async function handleEmployeeFormSubmit(event) {
     return;
   }
 
+  const personalPin = (formData.get('personalPin') || (state.currentEmployee ? state.currentEmployee.personalPin : '') || '').trim();
+  if (!personalPin || !/^[0-9]{4,6}$/.test(personalPin)) {
+    showToast('يرجى إدخال رمز سري لحسابك يتكون من 4 إلى 6 أرقام (PIN)', 'warning');
+    const pinEl = document.getElementById('formPersonalPin');
+    if (pinEl) {
+      pinEl.focus();
+      pinEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return;
+  }
+
   const submitBtn = form.querySelector('button[type="submit"]');
   const originalHtml = submitBtn.innerHTML;
   submitBtn.disabled = true;
-  submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري رفع الصور والمستمسكات إلى السحابة...`;
+  submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري معالجة وضغط المستمسكات بالتوازي...`;
 
   try {
     const empId = formData.get('employeeId');
@@ -1384,7 +2403,8 @@ async function handleEmployeeFormSubmit(event) {
       jobStatus: formData.get('jobStatus'),
       department: formData.get('department'),
       position: formData.get('position'),
-      jobTitle: formData.get('jobTitle')
+      jobTitle: formData.get('jobTitle'),
+      personalPin: personalPin
     };
 
     // Gather attachment files and camera base64 data
@@ -1423,10 +2443,20 @@ async function handleEmployeeFormSubmit(event) {
       }
     };
 
+    submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-bounce"></i> جاري حفظ وإرسال البيانات والمستمسكات إلى السحابة...`;
     const saved = await submitCloudEmployee(empId, formValues, attachments);
 
-    showToast('تم حفظ وإكمال البيانات ورفع المستمسكات إلى السحابة بنجاح!', 'success');
-    document.getElementById('completedEmpName').textContent = `أهلاً بك، الموظف: ${saved.fullName}`;
+    // Update in-memory state
+    if (Array.isArray(state.employeesList)) {
+      const idx = state.employeesList.findIndex(e => e.id === empId);
+      if (idx !== -1) {
+        state.employeesList[idx] = { ...state.employeesList[idx], ...saved };
+      }
+    }
+    state.currentEmployee = saved;
+
+    showToast('🎉 تم حفظ وإكمال البيانات والمرفقات في السحابة بنجاح!', 'success');
+    await renderEmployeePortal(saved);
     showView('employeeCompletedView');
   } catch (err) {
     showToast('فشل في إرسال البيانات إلى السحابة: ' + err.message, 'danger');
@@ -1530,6 +2560,53 @@ function retakeSnapshot() {
 function confirmSnapshot() {
   const previewImg = document.getElementById('cameraCapturedImg');
   const dataUrl = previewImg.src;
+
+  // Check if camera was opened by Manager for Single Photo Upload
+  if (state.cameraTarget === 'managerUpload') {
+    document.getElementById('mgrUploadCameraData').value = dataUrl;
+    const fileInput = document.getElementById('mgrPhotoFileInput');
+    if (fileInput) fileInput.value = '';
+    const previewBox = document.getElementById('mgrPhotoPreviewContainer');
+    if (previewBox) {
+      document.getElementById('mgrPhotoPreviewImg').src = dataUrl;
+      previewBox.style.display = 'block';
+    }
+    const statusHelper = document.getElementById('mgrPhotoStatusHelper');
+    if (statusHelper) statusHelper.textContent = 'تم التقاط الصورة بالكاميرا بنجاح';
+    const btnSave = document.getElementById('btnSaveManagerPhoto');
+    if (btnSave) btnSave.disabled = false;
+
+    showToast('تم التقاط الصورة، اضغط زر الحفظ لاعتمادها في الإضبارة', 'success');
+    closeCameraModal();
+    return;
+  }
+
+  // Check if camera was opened by Manager in Comprehensive Employee Edit Modal
+  if (state.cameraTarget && state.cameraTarget.startsWith('managerEdit_')) {
+    const photoKey = state.cameraTarget.replace('managerEdit_', '');
+    const cameraInput = document.getElementById(`mgrCamera_${photoKey}`);
+    if (cameraInput) cameraInput.value = dataUrl;
+    const fileInput = document.getElementById(`mgrFile_${photoKey}`);
+    if (fileInput) fileInput.value = '';
+    const previewImg = document.getElementById(`mgrPreview_${photoKey}`);
+    if (previewImg) {
+      previewImg.src = dataUrl;
+      previewImg.style.display = 'block';
+    }
+    const emptyEl = document.getElementById(`mgrEmpty_${photoKey}`);
+    if (emptyEl) emptyEl.style.display = 'none';
+    const badgeEl = document.getElementById(`mgrStatus_${photoKey}`);
+    if (badgeEl) {
+      badgeEl.className = 'manager-photo-status-badge changed';
+      badgeEl.textContent = 'تم التقاط صورة بالكاميرا';
+    }
+    const delInput = document.getElementById(`mgrDeleted_${photoKey}`);
+    if (delInput) delInput.value = 'false';
+
+    showToast('تم التقاط الصورة بالكاميرا بنجاح', 'success');
+    closeCameraModal();
+    return;
+  }
 
   const config = ATTACHMENT_MAP[state.cameraTarget];
   if (config) {

@@ -5,13 +5,19 @@ const path = require('path');
 // Normalizer for Arabic text matching and cleaning
 function normalizeArabicText(text) {
   if (!text) return '';
-  return String(text)
+  let s = String(text)
     .trim()
     .replace(/[أإآآ]/g, 'ا')
     .replace(/[ة]/g, 'ه')
     .replace(/[ى]/g, 'ي')
     .replace(/[\u064B-\u065F\u0670]/g, '') // remove tashkeel/diacritics
     .replace(/\s+/g, ' ');
+
+  s = s.replace(/عبد\s+/g, 'عبد')
+       .replace(/ابو\s+/g, 'ابو')
+       .replace(/(نور|سيف|شمس|علاء|بهاء|ضياء|جمال|كمال|صلاح|جلال|حسام|عماد|سعد|تقي)\s+الدين/g, (m, p1) => p1 + 'الدين');
+
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 /**
