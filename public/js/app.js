@@ -175,16 +175,10 @@ async function handleManagerLogin(event) {
     const u = username.toLowerCase();
     const p = password;
     const validUser = String(settings.adminUsername || 'admin').toLowerCase();
-    const validPass = String(settings.adminPassword || 'admin2024');
+    const validPass = String(settings.adminPassword || '9999');
 
     const isUserValid = (u === 'admin' || u === validUser);
-    const isPassValid = (
-      p === validPass ||
-      p === 'admin2024' ||
-      p === 'admin' ||
-      p === 'admin123' ||
-      p === '1234'
-    );
+    const isPassValid = (p === validPass || p === '9999');
 
     if (isUserValid && isPassValid) {
       state.isManagerLoggedIn = true;
@@ -194,7 +188,7 @@ async function handleManagerLogin(event) {
       showView('managerDashboardView');
       loadManagerDashboard();
     } else {
-      errorEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة. (الافتراضي: admin / admin2024)';
+      errorEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة. (الرمز الأساسي: 9999)';
       errorEl.style.display = 'flex';
     }
   } catch (error) {
@@ -1766,14 +1760,14 @@ function checkEmployeePinStatus() {
   if (emp && emp.personalPin) {
     codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري الشخصي الخاص بك (PIN)';
     if (codeInput) codeInput.placeholder = 'أدخل رمزك السري الشخصي (4 - 6 أرقام)';
-    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> تم التعرف على الموظف: هذا الحساب مؤمن برمزك السري الخاص';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-shield-halved" style="color: var(--sage-700);"></i> تم التعرف على الموظف: هذا الحساب مؤمن برمزك السري الخاص (لا يمكن الدخول بالرمز العام)';
   } else if (emp && !emp.personalPin) {
-    codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري الخاص بك (PIN)';
-    if (codeInput) codeInput.placeholder = 'أدخل أي 4 إلى 6 أرقام لتعيينها كرمزك السري';
-    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="color: #059669;"></i> تم التعرف على اسمك! أدخل أي 4-6 أرقام هنا لتعيينها كرمزك السري الشخصي والدخول فوراً.';
+    codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري / رمز الدخول';
+    if (codeInput) codeInput.placeholder = 'أدخل رمز الدخول العام أو رمزاً سرياً جديداً (4 - 6 أرقام)';
+    if (codeHelper) codeHelper.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="color: #059669;"></i> تم التعرف على اسمك! أدخل رمز الدخول العام أو أي 4-6 أرقام لتعيينها كرمزك السري الخاص والدخول فوراً.';
   } else {
     codeLabel.innerHTML = '<span class="required-star">*</span>الرمز السري / رمز الدخول';
-    if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي (4 - 6 أرقام)';
+    if (codeInput) codeInput.placeholder = 'أدخل الرمز السري الشخصي أو رمز الدخول العام';
     if (codeHelper) codeHelper.innerHTML = 'الرمز السري المعتمد للمتابعة';
   }
 }
@@ -1946,25 +1940,49 @@ async function handleEmployeeVerify(event) {
       return;
     }
 
+    // Refresh PIN from Firestore if connected to ensure latest value
+    if (isFirebaseReady && db && employee.id) {
+      try {
+        const freshDoc = await db.collection(COLLECTIONS.EMPLOYEES).doc(employee.id).get();
+        if (freshDoc.exists) {
+          const freshData = freshDoc.data();
+          if (freshData.personalPin !== undefined) {
+            employee.personalPin = freshData.personalPin;
+            const lIdx = (state.employeesList || []).findIndex(e => e.id === employee.id);
+            if (lIdx !== -1) state.employeesList[lIdx].personalPin = freshData.personalPin;
+          }
+        }
+      } catch (e) {}
+    }
+
     state.currentEmployee = employee;
 
-    // PIN check: accept 1234, employee's personalPin, generalCode, or any 4-6 digits if first time
+    // PIN check: If employee has a personal PIN, the general code is STRICTLY BLOCKED!
     const cleanCode = String(accessCode).trim();
-    const isCodeValid = (
-      cleanCode === '1234' ||
-      cleanCode === validGeneralCode ||
-      (employee.personalPin && cleanCode === String(employee.personalPin).trim()) ||
-      (!employee.personalPin && /^[0-9]{4,6}$/.test(cleanCode))
-    );
+    const hasPersonalPin = !!(employee.personalPin && String(employee.personalPin).trim() !== '');
+    const isGeneralCode = (cleanCode === '1234' || cleanCode === validGeneralCode);
+
+    let isCodeValid = false;
+    if (hasPersonalPin) {
+      // ONLY employee's personal PIN is valid
+      isCodeValid = (cleanCode === String(employee.personalPin).trim());
+    } else {
+      // First time or PIN reset: accept general code OR setting a new 4-6 digit PIN
+      isCodeValid = (isGeneralCode || /^[0-9]{4,6}$/.test(cleanCode));
+    }
 
     if (!isCodeValid) {
-      errorEl.innerHTML = '<i class="fa-solid fa-lock"></i> رمز الدخول غير صحيح. الرمز المعتمد هو: <strong>1234</strong> أو الرمز السري الشخصي الخاص بك.';
+      if (hasPersonalPin) {
+        errorEl.innerHTML = '<i class="fa-solid fa-lock"></i> الرمز السري الشخصي غير صحيح. هذا الحساب مؤمن برمز سري خاص لحماية الاستمارة.';
+      } else {
+        errorEl.innerHTML = '<i class="fa-solid fa-lock"></i> رمز الدخول غير صحيح. يرجى إدخال رمز الدخول العام أو رمز سري جديد (من 4 إلى 6 أرقام).';
+      }
       errorEl.style.display = 'flex';
       return;
     }
 
-    // If first time, set personal PIN
-    if (!employee.personalPin && /^[0-9]{4,6}$/.test(cleanCode)) {
+    // If first time and user entered a custom personal PIN (not general code), save it
+    if (!hasPersonalPin && !isGeneralCode && /^[0-9]{4,6}$/.test(cleanCode)) {
       employee.personalPin = cleanCode;
       if (typeof setEmployeePersonalPin === 'function' && isFirebaseReady) {
         await setEmployeePersonalPin(employee.id, cleanCode);
@@ -2039,12 +2057,23 @@ async function handleSavePersonalPin(event) {
       await setEmployeePersonalPin(empId, pin);
     }
 
+    try {
+      await fetch(`/api/manager/employee/${empId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personalPin: pin })
+      });
+    } catch(e) {}
+
     // Update local state
-    if (state.currentEmployee) {
+    if (state.currentEmployee && state.currentEmployee.id === empId) {
       state.currentEmployee.personalPin = pin;
     }
-    const localEmp = state.employeesList.find(e => e.id === empId);
+    const localEmp = (state.employeesList || []).find(e => e.id === empId);
     if (localEmp) localEmp.personalPin = pin;
+
+    const pinField = document.getElementById('formPersonalPin');
+    if (pinField) pinField.value = pin;
 
     closeModal('setPersonalPinModal');
     showToast('🎉 تم تعيين رمزك السري وتأمين حسابك بنجاح! احتفظ برمزك السري للدخول به دائماً.', 'success');
@@ -2074,8 +2103,19 @@ async function handleManagerResetPin(empId, empName) {
     if (typeof resetEmployeePersonalPin === 'function' && isFirebaseReady) {
       await resetEmployeePersonalPin(empId);
     }
-    const emp = state.employeesList.find(e => e.id === empId);
+    try {
+      await fetch(`/api/manager/employee/${empId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personalPin: '' })
+      });
+    } catch(e) {}
+
+    const emp = (state.employeesList || []).find(e => e.id === empId);
     if (emp) emp.personalPin = '';
+    if (state.currentEmployee && state.currentEmployee.id === empId) {
+      state.currentEmployee.personalPin = '';
+    }
 
     showToast(`تم تصفير الرمز السري للموظف (${empName}) بنجاح`, 'success');
     closeModal('reviewEmployeeModal');

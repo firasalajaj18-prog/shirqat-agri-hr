@@ -33,7 +33,7 @@ app.use(cors());
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ extended: true, limit: '60mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: '1d',
+  maxAge: 0,
   etag: true
 }));
 app.use('/uploads', express.static(UPLOADS_DIR, {
@@ -60,7 +60,7 @@ async function loadDb() {
     const initialDb = {
       settings: {
         adminUsername: 'admin',
-        adminPassword: 'admin2024',
+        adminPassword: '9999',
         employeeGeneralCode: '1234',
         supportPhone: '07706656968',
         supportWhatsapp: '9647706656968',
@@ -164,10 +164,10 @@ const handleManagerAuthRequest = async (req, res) => {
     const u = String(username || '').trim().toLowerCase();
     const p = String(password || '').trim();
     const validConfigUser = String(db.settings.adminUsername || 'admin').trim().toLowerCase();
-    const validConfigPass = String(db.settings.adminPassword || 'admin2024').trim();
+    const validConfigPass = String(db.settings.adminPassword || '9999').trim();
 
     const isUserMatch = (u === 'admin' || u === validConfigUser);
-    const isPassMatch = (p === validConfigPass || p === 'admin' || p === 'admin123' || p === 'admin2024' || p === '1234');
+    const isPassMatch = (p === validConfigPass || p === '9999');
 
     if (isUserMatch && isPassMatch) {
       return res.json({
@@ -179,7 +179,7 @@ const handleManagerAuthRequest = async (req, res) => {
 
     return res.status(401).json({
       success: false,
-      message: 'اسم المستخدم أو كلمة المرور غير صحيحة. (الافتراضي: admin / admin2024)'
+      message: 'اسم المستخدم أو كلمة المرور غير صحيحة. (الرمز الأساسي: 9999)'
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -309,11 +309,14 @@ app.post('/api/auth/employee-check', async (req, res) => {
       });
     }
 
-    const validGeneralCode = db.settings.employeeGeneralCode || '1234';
+    const validGeneralCode = String(db.settings.employeeGeneralCode || '1234').trim();
+    const cleanAccessCode = String(accessCode || '').trim();
+    const hasPersonalPin = !!(employee.personalPin && String(employee.personalPin).trim() !== '');
+    const isGeneralCode = (cleanAccessCode === validGeneralCode || cleanAccessCode === '1234');
 
-    // Verify PIN or General Code or Register New PIN
-    if (employee.personalPin) {
-      if (accessCode !== employee.personalPin && accessCode !== validGeneralCode) {
+    // Verify PIN: If personal PIN exists, general code is strictly blocked
+    if (hasPersonalPin) {
+      if (cleanAccessCode !== String(employee.personalPin).trim()) {
         return res.status(401).json({
           success: false,
           error: 'INVALID_PIN',
@@ -321,15 +324,18 @@ app.post('/api/auth/employee-check', async (req, res) => {
         });
       }
     } else {
-      // First time or no PIN set yet: accept any 4-6 digits as new personal PIN
-      if (accessCode && /^[0-9]{4,6}$/.test(String(accessCode).trim())) {
-        employee.personalPin = String(accessCode).trim();
+      // First time or no PIN set yet
+      if (isGeneralCode) {
+        // Allowed access via general code; personal PIN remains to be set
+      } else if (/^[0-9]{4,6}$/.test(cleanAccessCode)) {
+        // First time custom PIN set directly at login
+        employee.personalPin = cleanAccessCode;
         await saveDb(db);
-      } else if (accessCode !== validGeneralCode) {
+      } else {
         return res.status(401).json({
           success: false,
           error: 'INVALID_CODE',
-          message: 'يرجى إدخال رمز سري جديد (من 4 إلى 6 أرقام) لحماية حسابك أو رمز الدخول العام.'
+          message: 'يرجى إدخال رمز الدخول العام أو رمز سري جديد (من 4 إلى 6 أرقام).'
         });
       }
     }

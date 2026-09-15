@@ -65,7 +65,7 @@ function normalizeArabicText(text) {
 async function getCloudSettings() {
   const defaults = {
     adminUsername: 'admin',
-    adminPassword: 'admin2024',
+    adminPassword: '9999',
     employeeGeneralCode: '1234',
     supportPhone: '07706656968',
     supportWhatsapp: '9647706656968'
@@ -133,23 +133,37 @@ async function getAllCloudEmployees(forceRefresh = false) {
     }
   }
 
-  // Fallback to local server API if Firestore is empty or unavailable
-  if (employees.length === 0) {
-    try {
-      const res = await fetch('/api/employees');
-      if (res.ok) {
-        const localList = await res.json();
-        if (Array.isArray(localList) && localList.length > 0) {
-          employees = localList;
-          // Seed to Firestore in background
-          if (isFirebaseReady && db && employees.length > 0) {
-            seedEmployeesToFirestoreInBackground(employees);
+  // Merge with local server API to ensure all employees and PINs are completely available
+  try {
+    const res = await fetch('/api/employees');
+    if (res.ok) {
+      const localList = await res.json();
+      if (Array.isArray(localList) && localList.length > 0) {
+        const existingIds = new Set(employees.map(e => e.id));
+        const existingNames = new Set(employees.map(e => normalizeArabicText(e.fullName || '')));
+
+        localList.forEach(locEmp => {
+          const locNorm = normalizeArabicText(locEmp.fullName || '');
+          if (!existingIds.has(locEmp.id) && !existingNames.has(locNorm)) {
+            employees.push(locEmp);
+          } else {
+            const matched = employees.find(e => e.id === locEmp.id || normalizeArabicText(e.fullName || '') === locNorm);
+            if (matched) {
+              if (!matched.personalPin && locEmp.personalPin) {
+                matched.personalPin = locEmp.personalPin;
+              }
+            }
           }
+        });
+
+        // Seed unseeded employees to Firestore in background
+        if (isFirebaseReady && db && employees.length > 0) {
+          seedEmployeesToFirestoreInBackground(employees);
         }
       }
-    } catch (e) {
-      console.warn('Notice reading local employees API:', e.message);
     }
+  } catch (e) {
+    console.warn('Notice reading local employees API:', e.message);
   }
 
   if (employees.length > 0) {
@@ -636,6 +650,7 @@ async function setEmployeePersonalPin(empId, pin) {
   if (!isFirebaseReady || !db) throw new Error('السحابة غير متصلة');
   const empRef = db.collection(COLLECTIONS.EMPLOYEES).doc(empId);
   await empRef.set({ personalPin: String(pin).trim() }, { merge: true });
+  invalidateEmployeesCache();
   return true;
 }
 
