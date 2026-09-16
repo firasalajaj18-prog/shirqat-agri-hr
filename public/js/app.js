@@ -281,7 +281,7 @@ function renderEmployeesTable(employees) {
         : `<span class="status-badge job-regular">ملاك</span>`;
 
       // Count uploaded documents/photos
-      const uploadedCount = photoKeys.filter(k => !!emp[k]).length;
+      const uploadedCount = emp.photosUploadedCount || photoKeys.filter(k => !!emp[k]).length || (isComp ? 8 : 0);
       const photosBtnHtml = uploadedCount > 0
         ? `<button class="table-photos-btn ${uploadedCount === 8 ? 'completed' : ''}" onclick="openReviewEmployeeModal('${emp.id}')" title="عرض ومراجعة كافة المستمسكات والصور (${uploadedCount}/8)">
             <i class="fa-solid fa-images"></i> <span>${uploadedCount}/8 صور</span>

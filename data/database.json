@@ -71,7 +71,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "مهندس زراعي اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -80,7 +80,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497241-3140",
@@ -145,7 +147,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/مهندس زراعي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -154,7 +156,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497242-8061",
@@ -173,7 +177,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "رئيس ملاحظين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -182,7 +186,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497242-3267",
@@ -201,7 +207,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "رئيس ملاحظين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -210,7 +216,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497243-2915",
@@ -229,7 +237,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/ مـــــدير فـــني",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -238,7 +246,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497243-3551",
@@ -257,7 +267,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -266,7 +276,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497244-7115",
@@ -285,7 +297,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -294,7 +306,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497245-5060",
@@ -313,7 +327,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "مهندس زراعي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -322,7 +336,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497246-6682",
@@ -341,7 +357,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -350,7 +366,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497246-6085",
@@ -369,7 +387,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -378,7 +396,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497246-9852",
@@ -397,7 +417,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "معاون ملاحظ",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -406,7 +426,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497246-4092",
@@ -453,7 +475,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "معاون رئيس حرفيين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -462,7 +484,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497247-9778",
@@ -481,7 +505,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "رئيس اطباء بيطريين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -490,7 +514,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497247-2332",
@@ -509,7 +535,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -518,7 +544,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497247-834",
@@ -537,7 +565,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -546,7 +574,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497247-3831",
@@ -565,7 +595,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "مســـــاح اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -574,7 +604,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497247-3465",
@@ -621,7 +653,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -630,7 +662,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497248-3059",
@@ -649,7 +683,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "مبرمج اقـــــــدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -658,7 +692,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497248-1988",
@@ -677,7 +713,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/رئيس مهندسين زراعين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -686,7 +722,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497248-1679",
@@ -733,7 +771,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "فني",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -742,7 +780,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497249-7391",
@@ -761,7 +801,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -770,7 +810,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497249-5971",
@@ -789,7 +831,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اول",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -798,7 +840,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497251-5713",
@@ -817,7 +861,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "معاون رئيس حرفيين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -826,7 +870,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497252-5163",
@@ -845,7 +891,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "ملاحظ",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -854,7 +900,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497252-4217",
@@ -873,7 +921,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اول",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -882,7 +930,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497253-6659",
@@ -901,7 +951,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -910,7 +960,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497253-3544",
@@ -929,7 +981,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -938,7 +990,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497253-1509",
@@ -1013,7 +1067,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/ ملاحظ اعلامي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1022,7 +1076,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497255-54",
@@ -1097,7 +1153,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1106,7 +1162,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497256-6057",
@@ -1125,7 +1183,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1134,7 +1192,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497256-6450",
@@ -1181,7 +1241,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "سائق اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1190,7 +1250,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497257-8976",
@@ -1209,7 +1271,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اول",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1218,7 +1280,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497258-3573",
@@ -1237,7 +1301,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1246,7 +1310,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497258-3542",
@@ -1265,7 +1331,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "معاون محاسب",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1274,7 +1340,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497259-3590",
@@ -1349,7 +1417,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "رئيس حرفيين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1358,7 +1426,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497260-3948",
@@ -1377,7 +1447,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1386,7 +1456,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497261-6523",
@@ -1461,7 +1533,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "معاون رئيس مهندسين زراعين",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1470,7 +1542,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497262-1071",
@@ -1489,7 +1563,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1498,7 +1572,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497263-3650",
@@ -1545,7 +1621,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "مشرف بيانات",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1554,7 +1630,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497264-8658",
@@ -1601,7 +1679,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "فني",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1610,7 +1688,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497265-1355",
@@ -1629,7 +1709,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اول",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1638,7 +1718,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497266-8820",
@@ -1741,7 +1823,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اقدم",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1750,7 +1832,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497268-4148",
@@ -1825,7 +1909,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "مدير",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1834,7 +1918,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497270-3642",
@@ -1881,7 +1967,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/مهندس زراعي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1890,7 +1976,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497272-3248",
@@ -1909,7 +1997,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "كاتب",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1918,7 +2006,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497273-7770",
@@ -1937,7 +2027,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/كيمياوي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1946,7 +2036,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497274-9223",
@@ -1965,7 +2057,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -1974,7 +2066,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497275-8086",
@@ -1993,7 +2087,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اول",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2002,7 +2096,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497276-8198",
@@ -2021,7 +2117,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اول",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2030,7 +2126,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497276-6559",
@@ -2049,7 +2147,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "فني",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2058,7 +2156,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497276-8630",
@@ -2105,7 +2205,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/ مهندس زراعي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2114,7 +2214,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497278-8475",
@@ -2133,7 +2235,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي اول",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2142,7 +2244,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497279-2742",
@@ -2189,7 +2293,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "كاتب",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2198,7 +2302,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497280-7731",
@@ -2217,7 +2323,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "كاتب",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2226,7 +2332,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497280-6231",
@@ -2301,7 +2409,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2310,7 +2418,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497282-3829",
@@ -2385,7 +2495,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2394,7 +2504,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497283-8181",
@@ -2413,7 +2525,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "معاون ملاحظ",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2422,7 +2534,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497283-3204",
@@ -2441,7 +2555,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2450,7 +2564,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497284-8873",
@@ -2469,7 +2585,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2478,7 +2594,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497284-1771",
@@ -2497,7 +2615,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "م/كيمياوي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2506,7 +2624,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497285-2564",
@@ -2525,7 +2645,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2534,7 +2654,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497285-6148",
@@ -2553,7 +2675,7 @@
       "department": "شعبة زراعة الشرقاط",
       "position": "",
       "jobTitle": "حرفي",
-      "isCompleted": false,
+      "isCompleted": true,
       "personalPhoto": "",
       "medicalPhoto": "",
       "empCardFront": "",
@@ -2562,7 +2684,9 @@
       "idCardBack": "",
       "residenceCardFront": "",
       "residenceCardBack": "",
-      "completedAt": null
+      "completedAt": null,
+      "photosUploadedCount": 8,
+      "hasSubcollectionAttachments": true
     },
     {
       "id": "emp-1788698497286-8247",
