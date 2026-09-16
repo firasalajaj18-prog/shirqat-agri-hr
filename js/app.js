@@ -207,26 +207,33 @@ function logoutManager() {
 async function loadManagerDashboard() {
   try {
     const emps = await getAllCloudEmployees();
-    state.employeesList = emps;
-    renderStats(emps);
-    renderEmployeesTable(emps);
+    state.employeesList = emps || [];
+    renderStats(state.employeesList);
+    renderEmployeesTable(state.employeesList);
   } catch (err) {
-    showToast('خطأ في جلب بيانات الموظفين من السحابة', 'danger');
+    console.error('Error in loadManagerDashboard:', err);
+    showToast('خطأ في معالجة بيانات الموظفين: ' + (err.message || ''), 'danger');
   }
 }
 
 function renderStats(employees) {
+  if (!Array.isArray(employees)) return;
   const total = employees.length;
-  const completed = employees.filter(e => e.isCompleted).length;
+  const completed = employees.filter(e => e && (e.isCompleted === true || e.isCompleted === 'true')).length;
   const pending = total - completed;
 
-  document.getElementById('statTotalEmployees').textContent = total;
-  document.getElementById('statCompletedEmployees').textContent = completed;
-  document.getElementById('statPendingEmployees').textContent = pending;
+  const totalEl = document.getElementById('statTotalEmployees');
+  const compEl = document.getElementById('statCompletedEmployees');
+  const pendEl = document.getElementById('statPendingEmployees');
+
+  if (totalEl) totalEl.textContent = total;
+  if (compEl) compEl.textContent = completed;
+  if (pendEl) pendEl.textContent = pending;
 }
 
 function renderEmployeesTable(employees) {
   const tbody = document.getElementById('employeesTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   if (!employees || employees.length === 0) {
@@ -250,64 +257,74 @@ function renderEmployeesTable(employees) {
   ];
 
   employees.forEach((emp, index) => {
-    const quadName = [
-      emp.firstName || '',
-      emp.secondName || '',
-      emp.thirdName || '',
-      emp.fourthName || '',
-      emp.surname || ''
-    ].filter(Boolean).join(' ') || emp.fullName;
+    if (!emp) return;
+    try {
+      const quadName = String(
+        [
+          emp.firstName || '',
+          emp.secondName || '',
+          emp.thirdName || '',
+          emp.fourthName || '',
+          emp.surname || ''
+        ].filter(Boolean).join(' ') || emp.fullName || emp.name || 'موظف'
+      ).trim();
 
-    const statusBadge = emp.isCompleted
-      ? `<span class="status-badge completed"><i class="fa-solid fa-circle-check"></i> مكتمل</span>`
-      : `<span class="status-badge pending"><i class="fa-solid fa-clock"></i> قيد الإكمال</span>`;
+      const safeQuadEscaped = quadName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const isComp = (emp.isCompleted === true || emp.isCompleted === 'true');
 
-    const jobBadge = emp.jobStatus === 'عقد'
-      ? `<span class="status-badge job-contract">عقد</span>`
-      : `<span class="status-badge job-regular">ملاك</span>`;
+      const statusBadge = isComp
+        ? `<span class="status-badge completed"><i class="fa-solid fa-circle-check"></i> مكتمل</span>`
+        : `<span class="status-badge pending"><i class="fa-solid fa-clock"></i> قيد الإكمال</span>`;
 
-    // Count uploaded documents/photos
-    const uploadedCount = photoKeys.filter(k => !!emp[k]).length;
-    const photosBtnHtml = uploadedCount > 0
-      ? `<button class="table-photos-btn ${uploadedCount === 8 ? 'completed' : ''}" onclick="openReviewEmployeeModal('${emp.id}')" title="عرض ومراجعة كافة المستمسكات والصور (${uploadedCount}/8)">
-          <i class="fa-solid fa-images"></i> <span>${uploadedCount}/8 صور</span>
-        </button>`
-      : `<button class="table-photos-btn" onclick="openReviewEmployeeModal('${emp.id}')" title="لا توجد صور مرفوعة بعد">
-          <i class="fa-solid fa-image-slash"></i> <span>لا توجد صور</span>
-        </button>`;
+      const jobBadge = emp.jobStatus === 'عقد'
+        ? `<span class="status-badge job-contract">عقد</span>`
+        : `<span class="status-badge job-regular">ملاك</span>`;
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="text-align: center; font-weight: 800; color: var(--sage-700);">${index + 1}</td>
-      <td style="text-align: right; font-weight: 800; color: var(--sage-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-        <span style="cursor: pointer; color: var(--sage-800);" onclick="openReviewEmployeeModal('${emp.id}')" title="${quadName}">${quadName}</span>
-      </td>
-      <td style="text-align: right; color: var(--sage-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${emp.motherName || ''}">
-        ${emp.motherName ? `<span style="font-weight: 700;">${emp.motherName}</span>` : '<span class="empty-val-badge">لم تُدخل</span>'}
-      </td>
-      <td style="text-align: center;">${jobBadge}</td>
-      <td style="text-align: right; font-weight: 600; line-height: 1.25; font-size: 0.83rem;" title="${emp.jobTitle || ''}">${emp.jobTitle ? emp.jobTitle : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="text-align: center; white-space: nowrap;"><span dir="ltr" style="font-family: monospace; font-size: 0.84rem;">${emp.phone ? emp.phone : '<span class="empty-val-badge">—</span>'}</span></td>
-      <td style="text-align: center;"><span dir="ltr" style="font-weight: 800; color: var(--danger); font-size: 0.85rem;">${emp.bloodType ? emp.bloodType : '<span class="empty-val-badge">—</span>'}</span></td>
-      <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">${emp.unifiedId ? emp.unifiedId : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">${emp.familyNumber ? emp.familyNumber : '<span class="empty-val-badge">—</span>'}</td>
-      <td style="text-align: center;">${photosBtnHtml}</td>
-      <td style="text-align: center;">${statusBadge}</td>
-      <td style="text-align: center;">
-        <div style="display: inline-flex; gap: 0.25rem; align-items: center; justify-content: center;">
-          <button class="table-action-btn view" title="مراجعة إضبارة الموظف والصور" onclick="openReviewEmployeeModal('${emp.id}')">
-            <i class="fa-solid fa-eye"></i>
-          </button>
-          <button class="table-action-btn" title="تعديل الموظف" onclick="openEditEmployeeModal('${emp.id}')">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </button>
-          <button class="table-action-btn delete" title="حذف الموظف" onclick="deleteEmployee('${emp.id}', '${quadName.replace(/'/g, "\\'")}')">
-            <i class="fa-solid fa-trash-can"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
+      // Count uploaded documents/photos
+      const uploadedCount = photoKeys.filter(k => !!emp[k]).length;
+      const photosBtnHtml = uploadedCount > 0
+        ? `<button class="table-photos-btn ${uploadedCount === 8 ? 'completed' : ''}" onclick="openReviewEmployeeModal('${emp.id}')" title="عرض ومراجعة كافة المستمسكات والصور (${uploadedCount}/8)">
+            <i class="fa-solid fa-images"></i> <span>${uploadedCount}/8 صور</span>
+          </button>`
+        : `<button class="table-photos-btn" onclick="openReviewEmployeeModal('${emp.id}')" title="لا توجد صور مرفوعة بعد">
+            <i class="fa-solid fa-image-slash"></i> <span>لا توجد صور</span>
+          </button>`;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align: center; font-weight: 800; color: var(--sage-700);">${index + 1}</td>
+        <td style="text-align: right; font-weight: 800; color: var(--sage-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <span style="cursor: pointer; color: var(--sage-800);" onclick="openReviewEmployeeModal('${emp.id}')" title="${quadName}">${quadName}</span>
+        </td>
+        <td style="text-align: right; color: var(--sage-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${emp.motherName || ''}">
+          ${emp.motherName ? `<span style="font-weight: 700;">${emp.motherName}</span>` : '<span class="empty-val-badge">لم تُدخل</span>'}
+        </td>
+        <td style="text-align: center;">${jobBadge}</td>
+        <td style="text-align: right; font-weight: 600; line-height: 1.25; font-size: 0.83rem;" title="${emp.jobTitle || ''}">${emp.jobTitle ? emp.jobTitle : '<span class="empty-val-badge">—</span>'}</td>
+        <td style="text-align: center; white-space: nowrap;"><span dir="ltr" style="font-family: monospace; font-size: 0.84rem;">${emp.phone ? emp.phone : '<span class="empty-val-badge">—</span>'}</span></td>
+        <td style="text-align: center;"><span dir="ltr" style="font-weight: 800; color: var(--danger); font-size: 0.85rem;">${emp.bloodType ? emp.bloodType : '<span class="empty-val-badge">—</span>'}</span></td>
+        <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">${emp.unifiedId ? emp.unifiedId : '<span class="empty-val-badge">—</span>'}</td>
+        <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">${emp.familyNumber ? emp.familyNumber : '<span class="empty-val-badge">—</span>'}</td>
+        <td style="text-align: center;">${photosBtnHtml}</td>
+        <td style="text-align: center;">${statusBadge}</td>
+        <td style="text-align: center;">
+          <div style="display: inline-flex; gap: 0.25rem; align-items: center; justify-content: center;">
+            <button class="table-action-btn view" title="مراجعة إضبارة الموظف والصور" onclick="openReviewEmployeeModal('${emp.id}')">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+            <button class="table-action-btn" title="تعديل الموظف" onclick="openEditEmployeeModal('${emp.id}')">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button class="table-action-btn delete" title="حذف الموظف" onclick="deleteEmployee('${emp.id}', '${safeQuadEscaped}')">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    } catch (rowErr) {
+      console.warn('Notice rendering employee row:', emp && emp.id, rowErr);
+    }
   });
 }
 
@@ -328,13 +345,15 @@ async function openReviewEmployeeModal(empId) {
     }
   }
 
-  const quadName = [
-    emp.firstName || '',
-    emp.secondName || '',
-    emp.thirdName || '',
-    emp.fourthName || '',
-    emp.surname || ''
-  ].filter(Boolean).join(' ') || emp.fullName;
+  const quadName = String(
+    [
+      emp.firstName || '',
+      emp.secondName || '',
+      emp.thirdName || '',
+      emp.fourthName || '',
+      emp.surname || ''
+    ].filter(Boolean).join(' ') || emp.fullName || emp.name || 'موظف'
+  ).trim();
 
   const cleanQuad = quadName.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 

@@ -133,12 +133,36 @@ async function getAllCloudEmployees(forceRefresh = false) {
     }
   }
 
-  // Merge with local server API to ensure all employees and PINs are completely available
+  // Merge with local server API or static database.json to ensure all employees and PINs are completely available
   try {
-    const res = await fetch('/api/employees');
-    if (res.ok) {
-      const localList = await res.json();
-      if (Array.isArray(localList) && localList.length > 0) {
+    let localList = null;
+    try {
+      const res = await fetch('/api/employees');
+      if (res.ok) {
+        localList = await res.json();
+      }
+    } catch (e) {
+      // Local server /api/employees not accessible
+    }
+
+    if (!localList || !Array.isArray(localList) || localList.length === 0) {
+      try {
+        const jsonRes = await fetch('./data/database.json');
+        if (jsonRes.ok) {
+          const jsonData = await jsonRes.json();
+          if (jsonData && Array.isArray(jsonData.employees)) {
+            localList = jsonData.employees;
+          }
+        }
+      } catch (e) {
+        // static database.json not accessible
+      }
+    }
+
+    if (Array.isArray(localList) && localList.length > 0) {
+      if (employees.length === 0) {
+        employees = localList;
+      } else {
         const existingIds = new Set(employees.map(e => e.id));
         const existingNames = new Set(employees.map(e => normalizeArabicText(e.fullName || '')));
 
@@ -147,11 +171,22 @@ async function getAllCloudEmployees(forceRefresh = false) {
           if (!existingIds.has(locEmp.id) && !existingNames.has(locNorm)) {
             employees.push(locEmp);
           } else {
-            const matched = employees.find(e => e.id === locEmp.id || normalizeArabicText(e.fullName || '') === locNorm);
+            const matched = employees.find(e => e.id === locEmp.id || (e.fullName && normalizeArabicText(e.fullName) === locNorm));
             if (matched) {
-              if (!matched.personalPin && locEmp.personalPin) {
-                matched.personalPin = locEmp.personalPin;
-              }
+              if (!matched.fullName && locEmp.fullName) matched.fullName = locEmp.fullName;
+              if (!matched.firstName && locEmp.firstName) matched.firstName = locEmp.firstName;
+              if (!matched.secondName && locEmp.secondName) matched.secondName = locEmp.secondName;
+              if (!matched.thirdName && locEmp.thirdName) matched.thirdName = locEmp.thirdName;
+              if (!matched.fourthName && locEmp.fourthName) matched.fourthName = locEmp.fourthName;
+              if (!matched.surname && locEmp.surname) matched.surname = locEmp.surname;
+              if (!matched.personalPin && locEmp.personalPin) matched.personalPin = locEmp.personalPin;
+              if (!matched.jobTitle && locEmp.jobTitle) matched.jobTitle = locEmp.jobTitle;
+              if (!matched.jobStatus && locEmp.jobStatus) matched.jobStatus = locEmp.jobStatus;
+              if (!matched.phone && locEmp.phone) matched.phone = locEmp.phone;
+              if (!matched.motherName && locEmp.motherName) matched.motherName = locEmp.motherName;
+              if (!matched.unifiedId && locEmp.unifiedId) matched.unifiedId = locEmp.unifiedId;
+              if (!matched.familyNumber && locEmp.familyNumber) matched.familyNumber = locEmp.familyNumber;
+              if (locEmp.isCompleted && !matched.isCompleted) matched.isCompleted = true;
             }
           }
         });
@@ -163,7 +198,7 @@ async function getAllCloudEmployees(forceRefresh = false) {
       }
     }
   } catch (e) {
-    console.warn('Notice reading local employees API:', e.message);
+    console.warn('Notice reading local fallback data:', e.message);
   }
 
   if (employees.length > 0) {
